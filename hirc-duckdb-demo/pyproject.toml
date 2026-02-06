@@ -1,0 +1,15 @@
+[project]
+name = "hirc-duckdb-demo"
+version = "0.1.0"
+description = "Query Snowflake Iceberg tables with DuckDB via Horizon Catalog"
+requires-python = ">=3.9"
+dependencies = [
+    "duckdb>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+notebook = [
+    "jupyter>=1.0.0",
+    "pandas>=2.0.0",
+]

@@ -1,0 +1,52 @@
+# https://taskfile.dev
+version: "3"
+
+dir: "{{.TASKFILE_DIR}}"
+silent: true
+
+vars:
+    SKILLS_DIR: '{{.SKILLS_DIR | default (printf "%s/.snowflake/cortex/skills" .HOME)}}'
+    CORTEX_CONFIG: '{{.CORTEX_CONFIG | default (printf "%s/.config/.snowflake/cortex" .HOME)}}'
+
+tasks:
+    default:
+        desc: Show available tasks
+        cmds:
+            - task --list-all
+
+    skills:sync:
+        desc: Sync all skills to ~/.snowflake/cortex/skills
+        cmds:
+            - echo "Syncing skills to {{.SKILLS_DIR}}..."
+            - |
+                for skill_dir in */; do
+                  skill_name="${skill_dir%/}"
+                  if [ -f "$skill_dir/SKILL.md" ]; then
+                    echo "  Syncing $skill_name..."
+                    mkdir -p "{{.SKILLS_DIR}}/$skill_name"
+                    rsync -a --itemize-changes --exclude='.git' --exclude='.gitignore' "$skill_dir" "{{.SKILLS_DIR}}/$skill_name/"
+                  fi
+                done
+            - echo "✓ All skills synced"
+
+    skills:reload:
+        desc: Sync all skills and reload in Cortex Code
+        deps:
+            - skills:sync
+        cmds:
+            - echo "Clearing CoCo cache..."
+            - rm -rf "{{.CORTEX_CONFIG}}/cache" 2>/dev/null || true
+            - echo "✓ Cache cleared"
+            - echo "Reloading skills..."
+            - |
+                for skill_dir in */; do
+                  skill_name="${skill_dir%/}"
+                  if [ -f "$skill_dir/SKILL.md" ]; then
+                    echo "  Reloading $skill_name..."
+                    cortex skill remove "{{.SKILLS_DIR}}/$skill_name" 2>/dev/null || true
+                    cortex skill add "{{.SKILLS_DIR}}/$skill_name"
+                  fi
+                done
+            - echo "✓ Skills reloaded"
+            - echo ""
+            - echo "⚠ Restart CoCo or start a new chat session for changes to take effect"

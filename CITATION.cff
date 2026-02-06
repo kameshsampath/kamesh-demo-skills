@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Kamesh Demo Skills"
+abstract: "A collection of Cortex Code skills for Snowflake demos and tutorials."
+authors:
+    - family-names: "Sampath"
+      given-names: "Kamesh"
+repository-code: "https://github.com/kameshsampath/kamesh-demo-skills"
+license: Apache-2.0
+version: "1.0.0"
+date-released: "2026-02-06"
+keywords:
+    - snowflake
+    - cortex-code
+    - demos
+    - iceberg
+    - duckdb
+    - data-engineering
