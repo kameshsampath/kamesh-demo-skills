@@ -131,6 +131,9 @@ This manifest tracks Snowflake resources created by snow-utils skills.
 
 ---
 
+## project_recipe
+project_name: hirc-duckdb-demo
+
 ## prereqs
 
 ## dependent_skills
@@ -956,7 +959,116 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
 
    **If yes:** Run `cortex skill add <skill_url>`.
 
-3. **Find section using unique markers:**
+3. **Reconstruct .env (if missing or incomplete):**
+
+   > **Portable Manifest:** When replaying from a shared manifest, `.env` may not exist. Reconstruct it from the manifest + one user input.
+
+   ```bash
+   # Check if .env exists and has connection details
+   grep -q "^SNOWFLAKE_DEFAULT_CONNECTION_NAME=." .env 2>/dev/null || echo "NEEDS_SETUP"
+   ```
+
+   **If NEEDS_SETUP (no .env or missing connection):**
+
+   a. Copy `.env.example` from skill directory:
+
+      ```bash
+      cp <SKILL_DIR>/.env.example .env
+      ```
+
+   b. Ask user: "Which Snowflake connection?" then:
+
+      ```bash
+      snow connection list
+      ```
+
+      **⚠️ STOP**: Wait for user to select a connection.
+
+   c. Test connection and extract details:
+
+      ```bash
+      snow connection test -c <selected_connection> --format json
+      ```
+
+      Write to .env: `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `SNOWFLAKE_ACCOUNT`, `SNOWFLAKE_USER`, `SNOWFLAKE_ACCOUNT_URL`
+
+   d. **Infer from manifest sections** (extract `**Field:**` values):
+
+      ```bash
+      # From snow-utils-pat section
+      SA_USER=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*User:\*\*" | head -1 | sed 's/\*\*User:\*\* //')
+      SA_ROLE=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*Role:\*\*" | head -1 | sed 's/\*\*Role:\*\* //')
+      SNOW_UTILS_DB=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*Database:\*\*" | head -1 | sed 's/\*\*Database:\*\* //')
+
+      # From snow-utils-volumes section (resource table)
+      EXTERNAL_VOLUME_NAME=$(grep -A30 "<!-- START -- snow-utils-volumes" .snow-utils/snow-utils-manifest.md | grep "External Volume" | grep -o '[A-Z_]*EXTERNAL_VOLUME' | head -1)
+
+      # From hirc-duckdb-demo section
+      DEMO_DATABASE=$(grep -A30 "<!-- START -- hirc-duckdb-demo" .snow-utils/snow-utils-manifest.md | grep "^\*\*Database:\*\*" | head -1 | sed 's/\*\*Database:\*\* //')
+      ADMIN_ROLE=$(grep -A30 "<!-- START -- hirc-duckdb-demo" .snow-utils/snow-utils-manifest.md | grep "^\*\*Admin Role:\*\*" | head -1 | sed 's/\*\*Admin Role:\*\* //')
+      ```
+
+   e. Write all inferred values to `.env`:
+
+      ```bash
+      # Update .env with inferred values (only if not already set)
+      for var in SA_USER SA_ROLE SNOW_UTILS_DB EXTERNAL_VOLUME_NAME DEMO_DATABASE; do
+        val=$(eval echo \$$var)
+        [ -n "$val" ] && (grep -q "^${var}=" .env && \
+          sed -i '' "s/^${var}=.*/${var}=${val}/" .env || \
+          echo "${var}=${val}" >> .env)
+      done
+      ```
+
+   f. **Create fresh PAT (pre-populated from manifest):**
+
+      SA_PAT is a secret — never stored in manifest. But the creation command is **pre-populated from manifest values** so the user only confirms, not re-answers questions.
+
+      **Show pre-populated summary:**
+
+      ```
+      ⚠️ SA_PAT must be created fresh (secret — never stored in manifest).
+
+      Pre-populated from manifest:
+        Service User: {SA_USER}           (from manifest)
+        PAT Role:     {SA_ROLE}           (from manifest)
+        Database:     {SNOW_UTILS_DB}     (from manifest)
+        Admin Role:   {ADMIN_ROLE}        (from manifest)
+
+      Create fresh PAT with these values? [yes/no]
+      ```
+
+      **⚠️ STOP**: Wait for user confirmation.
+
+      **On "yes":** Run PAT creation directly with pre-populated flags (no interactive questions):
+
+      ```bash
+      uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/pat.py \
+        create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --output json
+      ```
+
+      > **Note:** This skips snow-utils-pat Steps 3-4 (gather requirements + dry run) because all values come from the manifest. The CLI still shows progress and creates all resources (network rule, policy, auth policy, PAT).
+
+      **After PAT creation:** Update .env with the new SA_PAT value (redacted in output).
+
+   g. **Recreate dependent resources if needed:**
+
+      If the manifest also has `snow-utils-networks` or `snow-utils-volumes` sections with `Status: REMOVED`, pre-populate and run those too:
+
+      ```
+      Pre-populated from manifest:
+        External Volume: {EXTERNAL_VOLUME_NAME}  (from manifest)
+        Bucket:          {BUCKET}                (from manifest)
+        Region:          {AWS_REGION}            (from manifest)
+
+      Recreate external volume? [yes/no]
+      ```
+
+      Each dependent skill gets ONE confirmation with manifest values shown.
+
+   **If .env exists and has all values (including SA_PAT):** Skip to step 4.
+
+4. **Find section using unique markers:**
 
    Look for the block between:
 
@@ -966,7 +1078,7 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
    <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
    ```
 
-4. **Check Status:**
+5. **Check Status:**
 
 | Status | Action |
 |--------|--------|
@@ -974,7 +1086,7 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
 | `COMPLETE` | Warn: "Demo already exists. Run cleanup first." |
 | `IN_PROGRESS` | Use Resume Flow instead |
 
-1. **If REMOVED, display replay plan:**
+6. **If REMOVED, display replay plan:**
 
    ```
    Replay from manifest will create:
@@ -988,9 +1100,9 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
 
    **⚠️ STOP**: Wait for user confirmation.
 
-2. **On confirmation:** Execute Steps 4-9 (with dry run preview for each SQL)
+7. **On confirmation:** Execute Steps 4-9 (with dry run preview for each SQL)
 
-3. **Update manifest section using unique markers:**
+8. **Update manifest section using unique markers:**
 
    Replace entire block from `<!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->` to `<!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->` with updated status COMPLETE.
 
