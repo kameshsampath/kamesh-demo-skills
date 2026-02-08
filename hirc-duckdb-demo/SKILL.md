@@ -1,6 +1,6 @@
 ---
 name: hirc-duckdb-demo
-description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo."
+description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo, export manifest for sharing, share hirc demo manifest, setup from shared manifest, replay from shared manifest, import shared manifest."
 location: user
 ---
 
@@ -839,6 +839,94 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
 
 ```
 
+## Export for Sharing Flow
+
+**Trigger phrases:** "export manifest for sharing", "share hirc demo manifest"
+
+**Purpose:** Create a portable copy of the manifest that another developer (Bob) can use to replay the entire setup on their machine.
+
+### Precondition
+
+CoCo MUST verify ALL skill sections have `Status: COMPLETE`:
+
+```bash
+# Check all sections
+grep "^\*\*Status:\*\*" .snow-utils/snow-utils-manifest.md
+```
+
+If any section is not COMPLETE, refuse with a clear listing of which sections need attention.
+
+### Export Steps
+
+1. **Read active manifest** from `.snow-utils/snow-utils-manifest.md`
+2. **Read `project_name`** from `## project_recipe` section
+3. **Determine `shared_by`** from `SNOWFLAKE_USER` in `.env` (fall back to asking user)
+4. **Ask user for export location:**
+
+```
+Export manifest for sharing:
+
+  Filename: {project_name}-manifest.md
+  Default location: ./ (project root)
+
+Save to [./]: 
+```
+
+**⚠️ STOP**: Wait for user input.
+
+5. **If file already exists at target:** Ask overwrite / rename with timestamp / cancel
+
+6. **Create export file** with these transformations:
+   - Inject `<!-- COCO_INSTRUCTION -->` at top
+   - Add `## shared_info` section after `# Snow-Utils Manifest` header
+   - Change ALL `**Status:** COMPLETE` to `**Status:** REMOVED`
+   - Add `# ADAPT: user-prefixed` to values containing the user's prefix
+   - Remove `### Cleanup Instructions` subsections (not relevant for recipient)
+
+7. **Show confirmation:**
+
+```
+Exported: hirc-duckdb-demo-manifest.md
+
+  Location: ./hirc-duckdb-demo-manifest.md
+  Shared by: {SNOWFLAKE_USER}
+  Sections: snow-utils-pat, snow-utils-networks, snow-utils-volumes, hirc-duckdb-demo
+  All statuses set to: REMOVED
+  ADAPT markers added for user-prefixed values
+
+Share this file with your colleague. They can open it in Cursor and ask CoCo:
+  "setup from shared manifest"
+```
+
+> **Note:** The exported file is in the project root, NOT in `.snow-utils/`. Skills only read from `.snow-utils/snow-utils-manifest.md` so the export is invisible to all skill flows.
+
+### Setup from Shared Manifest Flow
+
+**Trigger phrases:** "setup from shared manifest", "replay from shared manifest", "import shared manifest"
+
+When CoCo detects a shared manifest (file with `## shared_info` section or `<!-- COCO_INSTRUCTION -->` comment):
+
+1. **Read `project_name`** from `## project_recipe`
+2. **Ask Bob:**
+
+```
+This is a shared manifest for project: hirc-duckdb-demo
+
+Options:
+1. Create project directory: ./hirc-duckdb-demo (recommended)
+2. Use current directory
+3. Specify a custom directory name
+```
+
+**⚠️ STOP**: Wait for user input.
+
+3. **If target dir already has a manifest:** Offer backup (.bak) / abort / different directory
+4. **Create directory + `.snow-utils/`**, move manifest to `.snow-utils/snow-utils-manifest.md`
+5. **Check dependent skills installed** (from `## dependent_skills` section). Prompt `cortex skill add` for missing ones.
+6. **Proceed to Replay Flow** (step 3 below handles .env reconstruction and name adaptation)
+
+---
+
 ## Cleanup Flow
 
 **Trigger phrases:** "cleanup hirc demo", "remove hirc demo", "delete demo database"
@@ -1008,7 +1096,33 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
       ADMIN_ROLE=$(grep -A30 "<!-- START -- hirc-duckdb-demo" .snow-utils/snow-utils-manifest.md | grep "^\*\*Admin Role:\*\*" | head -1 | sed 's/\*\*Admin Role:\*\* //')
       ```
 
-   e. Write all inferred values to `.env`:
+   e. **Validate extracted values** (grep validation):
+
+      ```bash
+      # Validate critical values were extracted
+      for var in SA_USER SA_ROLE SNOW_UTILS_DB EXTERNAL_VOLUME_NAME DEMO_DATABASE; do
+        val=$(eval echo \$$var)
+        if [ -z "$val" ]; then
+          echo "WARNING: Could not extract ${var} from manifest. Check manifest format."
+        fi
+      done
+      ```
+
+      If any value is empty, ask user: "Some values couldn't be extracted. Enter them manually?" If yes, prompt for each. If no, abort replay.
+
+   f. **Detect shared manifest and offer name adaptation:**
+
+      If manifest contains `# ADAPT: user-prefixed` markers:
+
+      ```bash
+      grep -q "# ADAPT:" .snow-utils/snow-utils-manifest.md && echo "SHARED_MANIFEST"
+      ```
+
+      If SHARED_MANIFEST detected, extract `shared_by` from `## shared_info` section and Bob's `SNOWFLAKE_USER` from `.env`. If prefixes differ, show **combined summary + adaptation screen** (see BEST_PRACTICES "Name Adaptation During Replay"). One screen, one confirmation with three options: confirm all, edit specific value, keep originals.
+
+      If NOT a shared manifest (no `# ADAPT`): skip adaptation.
+
+   g. Write all values (adapted or original) to `.env`:
 
       ```bash
       # Update .env with inferred values (only if not already set)
