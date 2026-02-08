@@ -1,6 +1,6 @@
 ---
 name: hirc-duckdb-demo
-description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo."
+description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo."
 location: user
 ---
 
@@ -78,7 +78,7 @@ Pattern for file edits:
 4. Skip with message: "✓ Already applied: [description]"
 ```
 
-**⚠️ ENVIRONMENT REQUIREMENT:** Always use `set -a && source .env && set +a` before running commands that need .env variables.
+**⚠️ ENVIRONMENT REQUIREMENT:** Python scripts (pat.py, network.py, extvolume.py) auto-load `.env` via `load_dotenv()`. For `snow sql`, `envsubst`, or other shell commands, always use `set -a && source .env && set +a` before running.
 
 ### Step 0: Detect or Create Project Directory
 
