@@ -34,7 +34,7 @@ tasks:
         deps:
             - skills:sync
         cmds:
-            - echo "Clearing CoCo cache..."
+            - echo "Clearing Cortex Code cache..."
             - rm -rf "{{.CORTEX_CONFIG}}/cache" 2>/dev/null || true
             - echo "✓ Cache cleared"
             - echo "Reloading skills..."
@@ -49,4 +49,4 @@ tasks:
                 done
             - echo "✓ Skills reloaded"
             - echo ""
-            - echo "⚠ Restart CoCo or start a new chat session for changes to take effect"
+            - echo "⚠ Restart Cortex Code or start a new chat session for changes to take effect"

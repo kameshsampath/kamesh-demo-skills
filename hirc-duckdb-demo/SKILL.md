@@ -854,7 +854,7 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
 
 ### Precondition
 
-CoCo MUST verify ALL skill sections have `Status: COMPLETE`:
+Cortex Code MUST verify ALL skill sections have `Status: COMPLETE`:
 
 ```bash
 # Check all sections
@@ -884,11 +884,35 @@ Save to [./]:
 5. **If file already exists at target:** Ask overwrite / rename with timestamp / cancel
 
 6. **Create export file** with these transformations:
-   - Inject `<!-- COCO_INSTRUCTION -->` at top
+   - Inject enriched `<!-- COCO_INSTRUCTION -->` at top (see format below)
    - Add `## shared_info` section after `# Snow-Utils Manifest` header
+   - Add `## required_skills` section after `## shared_info` (see format below)
    - Change ALL `**Status:** COMPLETE` to `**Status:** REMOVED`
    - Add `# ADAPT: user-prefixed` to values containing the user's prefix
    - Remove `### Cleanup Instructions` subsections (not relevant for recipient)
+
+   **COCO_INSTRUCTION format (inject at top of exported file):**
+
+   ```markdown
+   <!-- COCO_INSTRUCTION: This is a shared snow-utils manifest.
+        project_name: {project_name}
+        setup_steps:
+          1. Check if required skills are installed: cortex skill list
+          2. For each skill in ## required_skills NOT in the list, run: cortex skill add <url>
+          3. Once all skills installed, follow hirc-duckdb-demo SKILL.md "Setup from Shared Manifest Flow"
+        To trigger: ask "setup from shared manifest" -->
+   ```
+
+   **required_skills section (inject after shared_info):**
+
+   ```markdown
+   ## required_skills
+   hirc-duckdb-demo: https://github.com/kameshsampath/kamesh-demo-skills/hirc-duckdb-demo
+   snow-utils-pat: https://github.com/kameshsampath/snow-utils-skills/snow-utils-pat
+   snow-utils-volumes: https://github.com/kameshsampath/snow-utils-skills/snow-utils-volumes
+   ```
+
+   > **Note:** `required_skills` includes ALL skills needed to replay, including the demo skill itself. This enables self-installation from a vanilla Cortex Code with no skills pre-installed.
 
 7. **Show confirmation:**
 
@@ -901,7 +925,7 @@ Exported: hirc-duckdb-demo-manifest.md
   All statuses set to: REMOVED
   ADAPT markers added for user-prefixed values
 
-Share this file with your colleague. They can open it in Cursor and ask CoCo:
+Share this file with your colleague. They can open it in Cursor and ask Cortex Code:
   "setup from shared manifest"
 ```
 
@@ -911,10 +935,42 @@ Share this file with your colleague. They can open it in Cursor and ask CoCo:
 
 **Trigger phrases:** "setup from shared manifest", "replay from shared manifest", "import shared manifest"
 
-When CoCo detects a shared manifest (file with `## shared_info` section or `<!-- COCO_INSTRUCTION -->` comment):
+When Cortex Code detects a shared manifest (file with `## shared_info` section or `<!-- COCO_INSTRUCTION -->` comment):
 
-1. **Read `project_name`** from `## project_recipe`
-2. **Ask Bob:**
+1. **Check and install required skills (self-install):**
+
+   ```bash
+   # Get list of installed skills
+   cortex skill list 2>/dev/null
+   ```
+
+   **Read `## required_skills` section from the manifest:**
+
+   ```bash
+   grep -A20 "^## required_skills" <manifest_file> | grep -E "^[a-z].*:" | while read line; do
+     skill=$(echo "$line" | cut -d: -f1)
+     url=$(echo "$line" | cut -d' ' -f2)
+     echo "$skill -> $url"
+   done
+   ```
+
+   **For each skill NOT in `cortex skill list` output, ask user:**
+
+   ```
+   Required skill not installed: hirc-duckdb-demo
+   URL: https://github.com/kameshsampath/kamesh-demo-skills/hirc-duckdb-demo
+
+   Install this skill? [yes/no]
+   ```
+
+   **⚠️ STOP**: Wait for user confirmation for each missing skill.
+
+   **If yes:** Run `cortex skill add <url>`.
+
+   > **Why self-install matters:** This enables zero-to-hero bootstrapping. Bob receives a manifest, opens it in Cursor, and Cortex Code installs ALL required skills (including the demo skill itself) before proceeding. No manual `cortex skill add` needed.
+
+2. **Read `project_name`** from `## project_recipe`
+3. **Ask Bob:**
 
 ```
 This is a shared manifest for project: hirc-duckdb-demo
@@ -927,9 +983,8 @@ Options:
 
 **⚠️ STOP**: Wait for user input.
 
-3. **If target dir already has a manifest:** Offer backup (.bak) / abort / different directory
-4. **Create directory + `.snow-utils/`**, move manifest to `.snow-utils/snow-utils-manifest.md`
-5. **Check dependent skills installed** (from `## dependent_skills` section). Prompt `cortex skill add` for missing ones.
+4. **If target dir already has a manifest:** Offer backup (.bak) / abort / different directory
+5. **Create directory + `.snow-utils/`**, move manifest to `.snow-utils/snow-utils-manifest.md`
 6. **Proceed to Replay Flow** (step 3 below handles .env reconstruction and name adaptation)
 
 ---
@@ -1037,17 +1092,24 @@ Options:
    cat .snow-utils/snow-utils-manifest.md 2>/dev/null
    ```
 
-2. **Check installed skills:**
+2. **Check required skills installed:**
 
    ```bash
    cortex skill list 2>/dev/null | grep -E "(snow-utils-pat|snow-utils-volumes)"
    ```
 
-   **For each dependent skill not installed, ask user:**
+   **Read skill URLs from `## required_skills` (if present) or `## dependent_skills` section:**
+
+   ```bash
+   grep -A20 "^## required_skills" .snow-utils/snow-utils-manifest.md | grep -E "^snow-utils-" || \
+   grep -A10 "^## dependent_skills" .snow-utils/snow-utils-manifest.md | grep -E "^snow-utils-"
+   ```
+
+   **For each dependency skill not installed, ask user:**
 
    ```
-   Dependent skill required: snow-utils-pat
-   Install command: cortex skill add https://github.com/kameshsampath/snow-utils-skills/snow-utils-pat
+   Required skill not installed: snow-utils-pat
+   URL: https://github.com/kameshsampath/snow-utils-skills/snow-utils-pat
 
    Install this skill? [yes/no]
    ```
