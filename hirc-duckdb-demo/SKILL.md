@@ -1138,6 +1138,9 @@ Options:
 
       SA_PAT is a secret — never stored in manifest. But the creation command is **pre-populated from manifest values** so the user only confirms, not re-answers questions.
 
+      > **⚠️ Dependency Skill Ownership:** Only pass identity values (`SA_USER`, `SA_ROLE`, `SNOW_UTILS_DB`) to the PAT skill.
+      > PAT-specific parameters (expiry settings, auth policy config) are owned by `snow-utils-pat` and handled by its CLI defaults or its own manifest section. Do NOT duplicate them here.
+
       **Show pre-populated summary:**
 
       ```
@@ -1148,20 +1151,21 @@ Options:
         PAT Role:     {SA_ROLE}           (from manifest)
         Database:     {SNOW_UTILS_DB}     (from manifest)
         Admin Role:   {ADMIN_ROLE}        (from manifest)
+        → PAT-specific settings (expiry, auth policy) handled by snow-utils-pat
 
       Create fresh PAT with these values? [yes/no]
       ```
 
       **⚠️ STOP**: Wait for user confirmation.
 
-      **On "yes":** Run PAT creation directly with pre-populated flags (no interactive questions):
+      **On "yes":** Run PAT creation with identity values only — PAT skill handles its own parameters:
 
       ```bash
       uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/pat.py \
         create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --output json
       ```
 
-      > **Note:** This skips snow-utils-pat Steps 3-4 (gather requirements + dry run) because all values come from the manifest. The CLI still shows progress and creates all resources (network rule, policy, auth policy, PAT).
+      > **Note:** This skips snow-utils-pat Steps 3-4 (gather requirements + dry run) because identity values come from the manifest. PAT-specific settings (expiry, auth policy) are read by the PAT skill from its own manifest section or CLI defaults.
 
       **After PAT creation:** Update .env with the new SA_PAT value (redacted in output).
 
