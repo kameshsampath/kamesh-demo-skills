@@ -1253,7 +1253,11 @@ Options:
 
    **⚠️ STOP**: Wait for user confirmation.
 
-7. **On confirmation:** Execute Steps 4-9 (with dry run preview for each SQL)
+7. **On confirmation:** Execute Steps 4-9 sequentially.
+
+   > **⚠️ MANDATORY:** Display every SQL preview box (Steps 4-8) BEFORE executing each step, even in replay.
+   > Replay reduces confirmation stops but NEVER skips the preview boxes — they are educational and serve as an audit trail.
+   > Flow: show preview box → execute → show next preview box → execute → ...
 
 8. **Update manifest section using unique markers:**
 
@@ -1291,7 +1295,10 @@ Options:
 
    **⚠️ STOP**: Wait for user confirmation.
 
-4. **On confirmation:** Continue from first PENDING resource (with dry run preview for each SQL)
+4. **On confirmation:** Continue from first PENDING resource.
+
+   > **⚠️ MANDATORY:** Display SQL preview boxes for each PENDING step BEFORE executing.
+   > Skip boxes for DONE steps only. NEVER collapse or summarize — show each box in full.
 
 5. **Update manifest section using unique markers:**
 
