@@ -339,8 +339,10 @@ echo "SNOWFLAKE_ACCOUNT_URL set to: ${SNOWFLAKE_ACCOUNT_URL}"
 
 ```bash
 set -a && source .env && set +a
-DEFAULT_DB_NAME="${SNOWFLAKE_USER:-$USER}_ICEBERG_DEMO"
+PROJECT_NAME=$(basename $(pwd) | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+DEFAULT_DB_NAME="${SNOWFLAKE_USER:-$USER}_${PROJECT_NAME}"
 echo "Computed default: ${DEFAULT_DB_NAME}"
+# e.g., hirc-duckdb-demo → ALICE_HIRC_DUCKDB_DEMO
 ```
 
 **Ask user with computed default (allow them to accept or change):**
