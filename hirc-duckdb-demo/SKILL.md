@@ -253,7 +253,12 @@ uv sync
 
 ```bash
 set -a && source .env && set +a
-grep -E "^(SNOWFLAKE_DEFAULT_CONNECTION_NAME|SNOWFLAKE_ACCOUNT|SNOWFLAKE_USER|SNOWFLAKE_ACCOUNT_URL|SA_ROLE|SNOW_UTILS_DB|SA_PAT|EXTERNAL_VOLUME_NAME)=" .env
+
+# Non-sensitive values: display normally
+grep -E "^(SNOWFLAKE_DEFAULT_CONNECTION_NAME|SNOWFLAKE_ACCOUNT|SNOWFLAKE_USER|SNOWFLAKE_ACCOUNT_URL|SA_ROLE|SNOW_UTILS_DB|EXTERNAL_VOLUME_NAME)=" .env
+
+# Sensitive values: existence check only (NEVER display SA_PAT)
+grep -q "^SA_PAT=." .env && echo "SA_PAT=***REDACTED***" || echo "SA_PAT: MISSING"
 ```
 
 **If SA_PAT is missing:**
