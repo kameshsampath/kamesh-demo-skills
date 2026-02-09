@@ -1200,11 +1200,39 @@ Options:
 
 | Status | Action |
 |--------|--------|
-| `REMOVED` | Proceed with creation |
-| `COMPLETE` | Warn: "Demo already exists. Run cleanup first." |
+| `REMOVED` | Proceed to step 6 |
+| `COMPLETE` | **Collision detected** — show collision strategy prompt |
 | `IN_PROGRESS` | Use Resume Flow instead |
 
-6. **If REMOVED, display replay plan:**
+   **If Status is `COMPLETE` — Collision Strategy (demo's OWN resources only):**
+
+   > **Dependency Skill Ownership:** Only check collision for `DEMO_DATABASE` here.
+   > PAT, network, and volume collisions are handled by their respective skills.
+
+   ```
+   ⚠️ Demo resources already exist:
+
+     Resource                    Status
+     ─────────────────────────────────────
+     Database: {DEMO_DATABASE}          EXISTS
+
+   Choose a strategy:
+   1. Use existing → skip database creation, verify grants only
+   2. Replace → DROP DATABASE then recreate (DESTRUCTIVE — all tables lost)
+   3. Rename → prompt for new database name
+   4. Cancel → stop replay
+   ```
+
+   **⚠️ STOP**: Wait for user choice.
+
+   | Choice | Action |
+   |--------|--------|
+   | **Use existing** | Skip database creation, verify grants to `SA_ROLE` are still valid. |
+   | **Replace** | Confirm with "Type 'yes, destroy' to confirm". `DROP DATABASE {DEMO_DATABASE}`, then proceed to step 6. |
+   | **Rename** | Ask for new database name. Update `DEMO_DATABASE` in `.env` and proceed to step 6. |
+   | **Cancel** | Stop replay. |
+
+6. **Display replay plan:**
 
    ```
    Replay from manifest will create:
