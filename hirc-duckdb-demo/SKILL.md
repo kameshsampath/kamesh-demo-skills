@@ -1087,8 +1087,6 @@ Options:
       SA_USER=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*User:\*\*" | head -1 | sed 's/\*\*User:\*\* //')
       SA_ROLE=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*Role:\*\*" | head -1 | sed 's/\*\*Role:\*\* //')
       SNOW_UTILS_DB=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*Database:\*\*" | head -1 | sed 's/\*\*Database:\*\* //')
-      PAT_DEFAULT_EXPIRY=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*Default Expiry (days):\*\*" | head -1 | sed 's/\*\*Default Expiry (days):\*\* //')
-      PAT_MAX_EXPIRY=$(grep -A30 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md | grep "^\*\*Max Expiry (days):\*\*" | head -1 | sed 's/\*\*Max Expiry (days):\*\* //')
 
       # From snow-utils-volumes section (resource table)
       EXTERNAL_VOLUME_NAME=$(grep -A30 "<!-- START -- snow-utils-volumes" .snow-utils/snow-utils-manifest.md | grep "External Volume" | grep -o '[A-Z_]*EXTERNAL_VOLUME' | head -1)
@@ -1146,12 +1144,10 @@ Options:
       ⚠️ SA_PAT must be created fresh (secret — never stored in manifest).
 
       Pre-populated from manifest:
-        Service User:   {SA_USER}           (from manifest)
-        PAT Role:       {SA_ROLE}           (from manifest)
-        Database:       {SNOW_UTILS_DB}     (from manifest)
-        Admin Role:     {ADMIN_ROLE}        (from manifest)
-        Default Expiry: {PAT_DEFAULT_EXPIRY} days  (from manifest, or default: 90)
-        Max Expiry:     {PAT_MAX_EXPIRY} days      (from manifest, or default: 365)
+        Service User: {SA_USER}           (from manifest)
+        PAT Role:     {SA_ROLE}           (from manifest)
+        Database:     {SNOW_UTILS_DB}     (from manifest)
+        Admin Role:   {ADMIN_ROLE}        (from manifest)
 
       Create fresh PAT with these values? [yes/no]
       ```
