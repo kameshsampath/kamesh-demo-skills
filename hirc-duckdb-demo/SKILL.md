@@ -38,6 +38,7 @@ This skill depends on `snow-utils-*` skills which populate .env with:
 - NEVER assume user consent - always ask and wait for explicit confirmation
 - NEVER search for .env files outside the project directory
 - NEVER scan user's home directory or other locations for existing files
+- **NEVER offer to drop SNOW_UTILS_DB** - it is shared infrastructure used by ALL skills/projects
 - Trust .env - if values present, they are correct
 - If values missing, direct user to prerequisite skill (don't search for files)
 
@@ -1075,6 +1076,8 @@ Options:
 6. **Cascading dependency cleanup (interactive -- ask for each):**
 
    > **🔴 CRITICAL: ALWAYS use the respective skill's CLI command for dependency cleanup. NEVER run raw SQL.**
+   >
+   > **🔴 NEVER offer to drop SNOW_UTILS_DB.** It is shared infrastructure used by ALL skills and projects. Cleanup only removes resources *inside* that database (policies, network rules, schemas), never the database itself.
 
    After demo cleanup succeeds, read the manifest for dependency skill sections and offer to clean each one:
 
