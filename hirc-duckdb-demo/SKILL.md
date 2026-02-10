@@ -1322,7 +1322,7 @@ Options:
 
       **For each dependency skill:**
 
-      1. Run `--dry-run` first, then paste the full SQL/JSON output into your response (terminal output gets truncated by the UI)
+      1. Run `--dry-run` first, then paste the full output into your response (terminal gets truncated). For volumes this includes IAM policy JSON, trust policy JSON, AND SQL -- do NOT omit the JSON.
       2. Get ONE confirmation with manifest values shown
       3. Execute creation
       4. **Run verify (MANDATORY)** -- do NOT skip, even in replay
