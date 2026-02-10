@@ -1484,6 +1484,68 @@ Options:
 - Step 6a: After explanation (confirm ready to fix)
 - Step 7: After RBAC preview (get approval)
 
+## CLI Reference (hirc-duckdb-demo)
+
+All commands auto-load `.env` and pass required variables to `snow sql` with templating.
+
+### `hirc-demo-setup`
+
+Creates the demo database with USAGE grants and sets the external volume.
+
+```bash
+uv run --project <SKILL_DIR> hirc-demo-setup [--dry-run]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--dry-run` | No | false | Preview command without executing |
+
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`, `SA_ROLE`, `EXTERNAL_VOLUME_NAME`
+
+### `hirc-demo-data`
+
+Creates Iceberg table and loads sample data.
+
+```bash
+uv run --project <SKILL_DIR> hirc-demo-data [--dry-run]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--dry-run` | No | false | Preview command without executing |
+
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`, `EXTERNAL_VOLUME_NAME`
+
+### `hirc-demo-rbac`
+
+Grants SELECT on Iceberg table to SA_ROLE.
+
+```bash
+uv run --project <SKILL_DIR> hirc-demo-rbac [--dry-run] [--schema PUBLIC] [--table FRUITS]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--schema` | No | `PUBLIC` | Schema name |
+| `--table` | No | `FRUITS` | Table name |
+| `--dry-run` | No | false | Preview command without executing |
+
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`, `SA_ROLE`
+
+### `hirc-demo-cleanup`
+
+Drops the demo database and all its tables.
+
+```bash
+uv run --project <SKILL_DIR> hirc-demo-cleanup [--dry-run]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--dry-run` | No | false | Preview command without executing |
+
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`
+
 ## SQL Reference (Snowflake Documentation)
 
 > These links help Cortex Code infer correct SQL syntax when previewing or troubleshooting.
