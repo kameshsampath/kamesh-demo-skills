@@ -1295,7 +1295,7 @@ Options:
         create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --dry-run
       ```
 
-      **🔴 CRITICAL:** Display the FULL dry-run output (summary + SQL). DO NOT skip or summarize.
+      **🔴 CRITICAL:** Terminal output gets truncated by the UI. After running the command, read the terminal output and paste the ENTIRE result (summary + SQL) into your response as a fenced code block.
 
       Then execute with `--dot-env-file` so the token never leaks:
 
@@ -1322,7 +1322,7 @@ Options:
 
       **For each dependency skill:**
 
-      1. Run `--dry-run` first to show full SQL/JSON preview
+      1. Run `--dry-run` first, then paste the full SQL/JSON output into your response (terminal output gets truncated by the UI)
       2. Get ONE confirmation with manifest values shown
       3. Execute creation
       4. **Run verify (MANDATORY)** -- do NOT skip, even in replay
