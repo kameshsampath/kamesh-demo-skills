@@ -1484,6 +1484,21 @@ Options:
 - Step 6a: After explanation (confirm ready to fix)
 - Step 7: After RBAC preview (get approval)
 
+## SQL Reference (Snowflake Documentation)
+
+> These links help Cortex Code infer correct SQL syntax when previewing or troubleshooting.
+
+| Statement | Documentation |
+|-----------|---------------|
+| `CREATE DATABASE` | https://docs.snowflake.com/en/sql-reference/sql/create-database |
+| `DROP DATABASE` | https://docs.snowflake.com/en/sql-reference/sql/drop-database |
+| `ALTER DATABASE ... SET EXTERNAL_VOLUME` | https://docs.snowflake.com/en/sql-reference/sql/alter-database |
+| `CREATE ICEBERG TABLE` (Snowflake catalog) | https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-snowflake |
+| `INSERT INTO` | https://docs.snowflake.com/en/sql-reference/sql/insert |
+| `GRANT USAGE ON DATABASE` | https://docs.snowflake.com/en/sql-reference/sql/grant-privilege |
+| `GRANT USAGE ON SCHEMA` | https://docs.snowflake.com/en/sql-reference/sql/grant-privilege |
+| `GRANT SELECT ON TABLE` | https://docs.snowflake.com/en/sql-reference/sql/grant-privilege |
+
 ## Troubleshooting
 
 **Prerequisites missing:** Run snow-utils-pat first (for SA_ROLE, SA_PAT), then snow-utils-volumes (for EXTERNAL_VOLUME_NAME).
