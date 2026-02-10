@@ -78,7 +78,7 @@ Pattern for file edits:
 4. Skip with message: "✓ Already applied: [description]"
 ```
 
-**⚠️ ENVIRONMENT REQUIREMENT:** Python scripts (pat.py, network.py, extvolume.py) auto-load `.env` via `load_dotenv()`. For `snow sql`, `envsubst`, or other shell commands, always use `set -a && source .env && set +a` before running.
+**⚠️ ENVIRONMENT REQUIREMENT:** CLI tools (snow-utils-pat, snow-utils-networks, snow-utils-volumes) auto-load `.env` via `load_dotenv()`. For `snow sql`, `envsubst`, or other shell commands, always use `set -a && source .env && set +a` before running.
 
 ### Step 0: Detect or Create Project Directory
 
@@ -1230,7 +1230,7 @@ Options:
       **On "yes":** Run PAT creation with identity values only — PAT skill handles its own parameters:
 
       ```bash
-      uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/pat.py \
+      uv run --project <SKILL_DIR> snow-utils-pat \
         create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --output json
       ```
 
