@@ -1227,31 +1227,76 @@ Options:
 
       **⚠️ STOP**: Wait for user confirmation.
 
-      **On "yes":** Run PAT creation with identity values only — PAT skill handles its own parameters:
+      **On "yes":** First run dry-run to show full SQL preview:
 
       ```bash
       uv run --project <SKILL_DIR> snow-utils-pat \
-        create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --output json
+        create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --dry-run
       ```
 
-      > **Note:** This skips snow-utils-pat Steps 3-4 (gather requirements + dry run) because identity values come from the manifest. PAT-specific settings (expiry, auth policy) are read by the PAT skill from its own manifest section or CLI defaults.
+      **🔴 CRITICAL:** Display the FULL dry-run output (summary + SQL). DO NOT skip or summarize.
 
-      **After PAT creation:** Update .env with the new SA_PAT value (redacted in output).
+      Then execute with `--dot-env-file` so the token never leaks:
+
+      ```bash
+      uv run --project <SKILL_DIR> snow-utils-pat \
+        create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} \
+        --dot-env-file .env
+      ```
+
+      > **🔴 SECURITY:** ALWAYS use `--dot-env-file .env`. NEVER use `sed` or shell commands to write the token.
+
+      **Verify PAT connection (MANDATORY -- do NOT skip):**
+
+      ```bash
+      uv run --project <SKILL_DIR> snow-utils-pat \
+        verify --user ${SA_USER} --role ${SA_ROLE}
+      ```
+
+      > If verify fails, stop and present error. Do NOT proceed to dependent resources.
 
    g. **Recreate dependent resources if needed:**
 
       If the manifest also has `snow-utils-networks` or `snow-utils-volumes` sections with `Status: REMOVED`, pre-populate and run those too:
 
-      ```
-      Pre-populated from manifest:
-        External Volume: {EXTERNAL_VOLUME_NAME}  (from manifest)
-        Bucket:          {BUCKET}                (from manifest)
-        Region:          {AWS_REGION}            (from manifest)
+      **For each dependency skill:**
 
-      Recreate external volume? [yes/no]
+      1. Run `--dry-run` first to show full SQL/JSON preview
+      2. Get ONE confirmation with manifest values shown
+      3. Execute creation
+      4. **Run verify (MANDATORY)** -- do NOT skip, even in replay
+
+      **Example for volumes:**
+
+      ```bash
+      # 1. Dry-run preview
+      uv run --project <SKILL_DIR> snow-utils-volumes \
+        --region {AWS_REGION} create --bucket {BUCKET} --dry-run
+
+      # 2. After user confirms, execute
+      uv run --project <SKILL_DIR> snow-utils-volumes \
+        --region {AWS_REGION} create --bucket {BUCKET} --output json
+
+      # 3. Verify (MANDATORY)
+      uv run --project <SKILL_DIR> snow-utils-volumes \
+        verify --volume-name {EXTERNAL_VOLUME_NAME}
       ```
 
-      Each dependent skill gets ONE confirmation with manifest values shown.
+      **Example for networks:**
+
+      ```bash
+      # 1. Dry-run preview
+      uv run --project <SKILL_DIR> snow-utils-networks \
+        rule create --name {NW_RULE_NAME} --db {NW_RULE_DB} --dry-run
+
+      # 2. After user confirms, execute
+      uv run --project <SKILL_DIR> snow-utils-networks \
+        rule create --name {NW_RULE_NAME} --db {NW_RULE_DB}
+
+      # 3. Verify (MANDATORY)
+      uv run --project <SKILL_DIR> snow-utils-networks \
+        rule list --db {NW_RULE_DB}
+      ```
 
    **If .env exists and has all values (including SA_PAT):** Skip to step 4.
 
