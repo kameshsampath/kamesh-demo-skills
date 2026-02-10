@@ -984,7 +984,7 @@ Options:
 **⚠️ STOP**: Wait for user input.
 
 4. **If target dir already has a manifest:** Offer backup (.bak) / abort / different directory
-5. **Create directory + `.snow-utils/`**, move manifest to `.snow-utils/snow-utils-manifest.md`
+5. **Create directory + `.snow-utils/`**, **copy** manifest to `.snow-utils/snow-utils-manifest.md` (preserve original for reference/audit -- do NOT move or delete it)
 6. **Proceed to Replay Flow** (step 3 below handles .env reconstruction and name adaptation)
 
 ---
