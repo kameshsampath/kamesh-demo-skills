@@ -78,7 +78,11 @@ Pattern for file edits:
 4. Skip with message: "✓ Already applied: [description]"
 ```
 
-**⚠️ ENVIRONMENT REQUIREMENT:** CLI tools (snow-utils-pat, snow-utils-networks, snow-utils-volumes) auto-load `.env` via `load_dotenv()`. For `snow sql`, `envsubst`, or other shell commands, always use `set -a && source .env && set +a` before running.
+**⚠️ ENVIRONMENT REQUIREMENT:** All CLI tools auto-load `.env` via `load_dotenv()`:
+- snow-utils-pat, snow-utils-networks, snow-utils-volumes (dependency skills)
+- hirc-demo-setup, hirc-demo-data, hirc-demo-rbac, hirc-demo-cleanup (this demo)
+
+For `snow sql`, `envsubst`, or other raw shell commands, use `set -a && source .env && set +a` before running.
 
 ### Step 0: Detect or Create Project Directory
 
@@ -473,14 +477,10 @@ Proceed with these settings?
 **Execute (uses user's connection - requires admin_role):**
 
 ```bash
-set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
-  -f sql/demo_setup.sql \
-  --enable-templating ALL \
-  --variable admin_role=${ADMIN_ROLE} \
-  --variable database_name=${DEMO_DATABASE} \
-  --variable sa_role=${SA_ROLE} \
-  --variable external_volume_name=${EXTERNAL_VOLUME_NAME}
+uv run --project <SKILL_DIR> hirc-demo-setup
 ```
+
+> Reads ADMIN_ROLE, DEMO_DATABASE, SA_ROLE, EXTERNAL_VOLUME_NAME from `.env` automatically.
 
 **Update manifest (IN_PROGRESS):**
 
@@ -537,13 +537,10 @@ set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NA
 **Execute (uses admin_role - owns the database and table):**
 
 ```bash
-set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
-  -f sql/sample_data.sql \
-  --enable-templating ALL \
-  --variable admin_role=${ADMIN_ROLE} \
-  --variable database_name=${DEMO_DATABASE} \
-  --variable external_volume_name=${EXTERNAL_VOLUME_NAME}
+uv run --project <SKILL_DIR> hirc-demo-data
 ```
+
+> Reads ADMIN_ROLE, DEMO_DATABASE, EXTERNAL_VOLUME_NAME from `.env` automatically.
 
 > **Note:** admin_role creates and owns the table. SA_ROLE only has USAGE on database/schema (no SELECT yet).
 
@@ -704,15 +701,10 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 **Execute (uses user's connection - requires admin_role):**
 
 ```bash
-set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
-  -f sql/rbac.sql \
-  --enable-templating ALL \
-  --variable admin_role=${ADMIN_ROLE} \
-  --variable database_name=${DEMO_DATABASE} \
-  --variable schema=PUBLIC \
-  --variable table=FRUITS \
-  --variable sa_role=${SA_ROLE}
+uv run --project <SKILL_DIR> hirc-demo-rbac
 ```
+
+> Reads ADMIN_ROLE, DEMO_DATABASE, SA_ROLE from `.env`. Defaults: schema=PUBLIC, table=FRUITS.
 
 **Update manifest:** Mark "RBAC Grant: SELECT on FRUITS" as DONE.
 
@@ -803,10 +795,7 @@ set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
 ### Cleanup Instructions
 
 ```bash
-set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
-  -f sql/cleanup.sql --enable-templating ALL \
-  --variable admin_role=${ADMIN_ROLE} \
-  --variable database_name=${DEMO_DATABASE}
+uv run --project <SKILL_DIR> hirc-demo-cleanup
 ```
 <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
 ```
@@ -1038,11 +1027,8 @@ Options:
    ```
    Will remove: Database ${DEMO_DATABASE} and all its tables
    
-   Command from manifest:
-   set -a && source .env && set +a && snow sql -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
-     -f sql/cleanup.sql --enable-templating ALL \
-     --variable admin_role=${ADMIN_ROLE} \
-     --variable database_name=${DEMO_DATABASE}
+   Command:
+   uv run --project <SKILL_DIR> hirc-demo-cleanup
    
    Proceed? [yes/no]
    ```
