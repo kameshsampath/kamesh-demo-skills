@@ -1035,7 +1035,13 @@ Options:
 
    **⚠️ STOP**: Wait for user confirmation.
 
-4. **On confirmation:** Execute cleanup
+4. **On confirmation:** Execute cleanup using the CLI command:
+
+   ```bash
+   uv run --project <SKILL_DIR> hirc-demo-cleanup
+   ```
+
+   > **NEVER run raw SQL for cleanup.** ALWAYS use the CLI command above.
 
 5. **Update manifest section using unique markers:**
 
@@ -1064,6 +1070,72 @@ Options:
    | 3 | Iceberg Table | FRUITS (sample data) | {DEMO_DATABASE}.PUBLIC | REMOVED |
    | 4 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | REMOVED |
    <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
+   ```
+
+6. **Cascading dependency cleanup (interactive -- ask for each):**
+
+   > **🔴 CRITICAL: ALWAYS use the respective skill's CLI command for dependency cleanup. NEVER run raw SQL.**
+
+   After demo cleanup succeeds, read the manifest for dependency skill sections and offer to clean each one:
+
+   ```
+   ✓ Demo database ${DEMO_DATABASE} cleaned up.
+
+   The following dependency resources still exist:
+     1. PAT:      ${SA_USER} (managed by snow-utils-pat)
+     2. Volumes:  ${EXTERNAL_VOLUME_NAME} (managed by snow-utils-volumes)
+     3. Networks: ${NW_RULE_NAME} (managed by snow-utils-networks)
+
+   Would you like to clean up dependency resources?
+   ```
+
+   **⚠️ STOP**: Wait for user input.
+
+   **For each dependency skill (reverse creation order: PAT -> Volumes -> Networks):**
+
+   a. **Ask user:**
+
+      ```
+      Remove PAT resources (user: ${SA_USER}, role: ${SA_ROLE})? [yes/no]
+      ```
+
+      **⚠️ STOP**: Wait for user input.
+
+   b. **On "yes":** Read the CLI command from that skill's **"Cleanup Instructions"** section in the manifest, then execute it:
+
+      **PAT cleanup:**
+      ```bash
+      uv run --project <SKILL_DIR> snow-utils-pat \
+        remove --user ${SA_USER} --db ${SNOW_UTILS_DB} --drop-user
+      ```
+
+      **Volumes cleanup:**
+      ```bash
+      uv run --project <SKILL_DIR> snow-utils-volumes \
+        --region ${AWS_REGION} \
+        delete --bucket ${BUCKET} --yes
+      ```
+
+      **Networks cleanup:**
+      ```bash
+      uv run --project <SKILL_DIR> snow-utils-networks \
+        rule delete --name ${NW_RULE_NAME} --db ${NW_RULE_DB} --yes
+      ```
+
+   c. **After each successful cleanup:** Update that skill's manifest section status to `REMOVED`.
+
+   d. **On "no":** Skip that skill and move to the next.
+
+   e. **On failure:** Stop, present error, ask user whether to continue with remaining skills or abort.
+
+   **After all steps complete, show summary:**
+
+   ```
+   Cleanup Summary:
+     ✓ Demo Database:     ${DEMO_DATABASE}     → REMOVED
+     ✓ PAT:               ${SA_USER}           → REMOVED  (or "SKIPPED" if user said no)
+     ✓ External Volume:   ${EXTERNAL_VOLUME_NAME} → REMOVED
+     ✓ Network Rule:      ${NW_RULE_NAME}      → REMOVED
    ```
 
 ## Replay Flow
