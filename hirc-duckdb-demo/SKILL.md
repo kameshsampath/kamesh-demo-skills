@@ -639,7 +639,8 @@ uv run --project <SKILL_DIR> hirc-demo-setup --admin-role ${ADMIN_ROLE}
 | 1 | Database | {DEMO_DATABASE} | Account | DONE |
 | 2 | Grant | USAGE on DB | {DEMO_DATABASE} → {SA_ROLE} | DONE |
 | 3 | Iceberg Table | FRUITS (sample data) | {DEMO_DATABASE}.PUBLIC | PENDING |
-| 4 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | PENDING |
+| 4 | Demo Run | DuckDB query (MUST FAIL - no SELECT yet) | Step 6 | PENDING |
+| 5 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | BLOCKED_BY:4 |
 <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
 ```
 
@@ -747,6 +748,8 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 
 **⚠️ STOP**: Show user the result and explain (Step 6a if failed, Step 8 if succeeded).
 
+**Update manifest:** Mark "Demo Run" (row 4) as DONE and change "RBAC Grant" (row 5) status from `BLOCKED_BY:4` to `PENDING`.
+
 **Update manifest status to DEMO_FAIL (if failed):** Use the file editing tool (Edit/StrReplace) to change the status:
 
 ```markdown
@@ -851,7 +854,7 @@ uv run --project <SKILL_DIR> hirc-demo-rbac --admin-role ${ADMIN_ROLE}
 
 > Reads DEMO_DATABASE, SA_ROLE from `.env`. `--admin-role` value comes from manifest (Step 2a). Defaults: schema=PUBLIC, table=FRUITS.
 
-**Update manifest:** Mark "RBAC Grant: SELECT on FRUITS" as DONE.
+**Update manifest:** Mark "RBAC Grant" (row 5) as DONE.
 
 ### Step 8: Run Demo Again (Success!)
 
@@ -935,7 +938,8 @@ set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
 | 1 | Database | {DEMO_DATABASE} | Account | DONE |
 | 2 | Grant | USAGE on DB | {DEMO_DATABASE} → {SA_ROLE} | DONE |
 | 3 | Iceberg Table | FRUITS (sample data) | {DEMO_DATABASE}.PUBLIC | DONE |
-| 4 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | DONE |
+| 4 | Demo Run | DuckDB query (MUST FAIL - no SELECT yet) | Step 6 | DONE |
+| 5 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | DONE |
 
 ### Cleanup Instructions
 
@@ -1213,7 +1217,8 @@ Options:
    | 1 | Database | {DEMO_DATABASE} | Account | REMOVED |
    | 2 | Grant | USAGE on DB | {DEMO_DATABASE} → {SA_ROLE} | REMOVED |
    | 3 | Iceberg Table | FRUITS (sample data) | {DEMO_DATABASE}.PUBLIC | REMOVED |
-   | 4 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | REMOVED |
+   | 4 | Demo Run | DuckDB query (MUST FAIL - no SELECT yet) | Step 6 | REMOVED |
+   | 5 | RBAC Grant | SELECT on FRUITS → {SA_ROLE} | Enables external query | REMOVED |
    <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
    ```
 
