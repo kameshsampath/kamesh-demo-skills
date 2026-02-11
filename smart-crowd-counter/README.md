@@ -69,14 +69,22 @@ Setup from shared manifest
 Replay crowd counter from manifest
 ```
 
-To redeploy the app after editing:
+To update the app or view after editing:
 
 ```
-Re-run crowd counter
+Update crowd counter app
 ```
 
 ```
-Redeploy crowd counter app
+Deploy crowd counter changes
+```
+
+```
+Update crowd counter view
+```
+
+```
+Edit crowd counter SQL
 ```
 
 The skill guides you through:

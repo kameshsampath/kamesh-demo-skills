@@ -13,15 +13,16 @@
 # limitations under the License.
 
 # Import python packages
-import streamlit as st
 import io
-import pandas as pd
-import altair as alt
-from snowflake.core import Root, CreateMode
-from snowflake.core.stage import Stage, StageEncryption, StageDirectoryTable
-from snowflake.snowpark.context import get_active_session
-import time
 import json
+import time
+
+import altair as alt
+import pandas as pd
+import streamlit as st
+from snowflake.core import CreateMode, Root
+from snowflake.core.stage import Stage, StageDirectoryTable, StageEncryption
+from snowflake.snowpark.context import get_active_session
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -67,10 +68,12 @@ if "uploaded_files" not in st.session_state:
 
 st.title("Smart Crowd Counter :material/groups:")
 st.markdown(
-    """This Streamlit app helps track conference attendees and badge distribution
+    """
+This Streamlit app helps track conference attendees and badge distribution
 using AI-powered image analysis.
 
 **How it works:**
+
 - Upload images (JPG, PNG, JPEG) from your conference sessions
 - AI analyzes the images to count total attendees and identify raised hands
 - View conversion rates and visualize badge distribution
@@ -80,9 +83,7 @@ using AI-powered image analysis.
 """
 )
 
-st.caption(
-    f"Database: `{_DATABASE}` | Schema: `{_SCHEMA}` | Stage: `{_STAGE_NAME}`"
-)
+st.caption(f"Database: `{_DATABASE}` | Schema: `{_SCHEMA}` | Stage: `{_STAGE_NAME}`")
 
 
 # ---------------------------------------------------------------------------
@@ -249,9 +250,7 @@ if _files is not None and len(_files) > 0:
             # Refresh stage after all uploads
             if upload_success and new_files:
                 try:
-                    session.sql(
-                        f"ALTER STAGE {_STAGE_FQN[1:]} REFRESH"
-                    ).collect()
+                    session.sql(f"ALTER STAGE {_STAGE_FQN[1:]} REFRESH").collect()
                     st.success("Stage refreshed successfully!")
 
                     # Small delay to ensure processing is complete
@@ -321,10 +320,7 @@ if st.session_state.selected_row and not st.session_state.df.empty:
             image_url = None
             filename = None
 
-            if (
-                "FILE_NAME" in selected_row.index
-                and selected_row["FILE_NAME"]
-            ):
+            if "FILE_NAME" in selected_row.index and selected_row["FILE_NAME"]:
                 file_name_json = selected_row["FILE_NAME"]
                 filename = extract_filename_from_json(file_name_json)
 
@@ -375,9 +371,7 @@ if st.session_state.selected_row and not st.session_state.df.empty:
 
             elif filename:
                 st.error(f"Could not generate presigned URL for: {filename}")
-                st.info(
-                    "Check Snowflake permissions for GET_PRESIGNED_URL function"
-                )
+                st.info("Check Snowflake permissions for GET_PRESIGNED_URL function")
             else:
                 st.info("No valid image file found in selected row")
                 with st.expander(":material/bug_report: Debug info"):
@@ -395,9 +389,7 @@ if st.session_state.selected_row and not st.session_state.df.empty:
                             )
                             st.json(parsed)
                         except Exception as e:
-                            st.write(
-                                f"Could not parse FILE_NAME as JSON: {str(e)}"
-                            )
+                            st.write(f"Could not parse FILE_NAME as JSON: {str(e)}")
 
         with col2:
             st.subheader(":material/analytics: Analytics")
@@ -406,7 +398,7 @@ if st.session_state.selected_row and not st.session_state.df.empty:
 
             st.metric(
                 label="Conversion Rate",
-                value=f'{float(selected_row.get("PERCENTAGE_WITH_HANDS_UP", 0)):.1f}%',
+                value=f"{float(selected_row.get('PERCENTAGE_WITH_HANDS_UP', 0)):.1f}%",
                 delta=None,
             )
             st.metric(

@@ -1,6 +1,6 @@
 ---
 name: smart-crowd-counter
-description: "Set up Smart Crowd Counter demo: a Streamlit-in-Snowflake app using Cortex AISQL to analyze conference photos, count attendees, and detect raised hands. Triggers: smart crowd counter, crowd counter demo, conference photo analysis, cortex aisql demo, streamlit crowd counter, set up crowd counter, replay crowd counter, replay smart-crowd-counter manifest, recreate crowd counter demo, export manifest for sharing, share crowd counter manifest, setup from shared manifest, replay from shared manifest, import shared manifest, setup from manifest URL, replay from URL, use manifest from URL, re-run crowd counter, redeploy crowd counter app."
+description: "Set up Smart Crowd Counter demo: a Streamlit-in-Snowflake app using Cortex AISQL to analyze conference photos, count attendees, and detect raised hands. Triggers: smart crowd counter, crowd counter demo, conference photo analysis, cortex aisql demo, streamlit crowd counter, set up crowd counter, replay crowd counter, replay smart-crowd-counter manifest, recreate crowd counter demo, export manifest for sharing, share crowd counter manifest, setup from shared manifest, replay from shared manifest, import shared manifest, setup from manifest URL, replay from URL, use manifest from URL, re-run crowd counter, redeploy crowd counter app, update crowd counter app, deploy crowd counter changes, update crowd counter view, edit crowd counter SQL."
 location: user
 ---
 
@@ -43,6 +43,7 @@ For Streamlit-related tasks (editing the app, improving UI, deploying), use the 
 - **NEVER use sed/awk/bash to edit manifest or .env files** -- use the file editing tool (Edit/StrReplace) for both. `sed -i` is platform-dependent and breaks on macOS vs Linux.
 - **NEVER guess or invent CLI options** - ONLY use options from the CLI Reference tables; if a command fails with "No such option", run `<command> --help` and use ONLY those options
 - **NEVER use `uv run --project <SKILL_DIR>`** for CLI commands -- it changes CWD and breaks `.env` discovery. Always use `uv run scc-xxx` from the project directory
+- **NEVER run `snow streamlit deploy` without `--role ${DEMO_ROLE}`** -- the demo role owns the database and app. Omitting `--role` uses the connection's default role which will fail or deploy to the wrong context. ALWAYS include `--role ${DEMO_ROLE}` on every deploy, redeploy, or update.
 - Trust .env - if values present, they are correct
 - If values missing, prompt the user (don't search for files)
 
@@ -1513,31 +1514,47 @@ Cleanup is **two-phase**: first drop the database using the demo role (which own
 
 ## Re-run Flow
 
-**Trigger phrases:** "re-run crowd counter", "redeploy crowd counter app", "recreate crowd counter view"
+**Trigger phrases:** "re-run crowd counter", "redeploy crowd counter app", "recreate crowd counter view", "update crowd counter app", "deploy crowd counter changes", "update crowd counter view", "edit crowd counter SQL"
 
 **Precondition:** Manifest status must be `COMPLETE`. If not COMPLETE, use Resume Flow (IN_PROGRESS) or Replay Flow (REMOVED) instead.
 
-This is a lightweight flow that redeploys the Streamlit app and optionally recreates the view (e.g., to change the AI model).
+This is a lightweight flow for iterative development -- redeploy the Streamlit app and/or update the AI view SQL.
 
 1. **Read manifest and verify COMPLETE status.**
 
 2. **Read ADMIN_ROLE and DEMO_ROLE from manifest.**
 
-3. **Ask user what to re-run:**
+3. **Ask user what to update:**
 
    ```
-   Re-run options:
+   Update options:
 
-   1. Redeploy Streamlit app only (e.g., after editing streamlit_app.py)
-   2. Recreate view + redeploy app (e.g., to change AI model)
-   3. Cancel
+   1. Redeploy Streamlit app (after editing streamlit_app.py or environment.yml)
+   2. Update AI view SQL (edit the view definition, e.g. change prompt or model)
+   3. Both -- update view + redeploy app
+   4. Cancel
 
-   Choose [1/2/3]:
+   Choose [1/2/3/4]:
    ```
 
    **STOP**: Wait for user choice.
 
-4. **If option 2 (recreate view), ask for AI model:**
+4. **If option 2 or 3 (update view SQL):**
+
+   **Ask user how they want to update the view:**
+
+   ```
+   How would you like to update the view?
+
+   A. Change AI model only (quick swap)
+   B. Edit the full view SQL in sql/setup.sql (for prompt or logic changes)
+
+   Choose [A/B]:
+   ```
+
+   **STOP**: Wait for user choice.
+
+   **If A (change AI model only):**
 
    ```
    Current AI model: ${AI_MODEL}
@@ -1548,33 +1565,64 @@ This is a lightweight flow that redeploys the Streamlit app and optionally recre
 
    **STOP**: Wait for user input. If Enter, keep current.
 
-   If model changed, update `.env` and show SQL preview:
+   If model changed, use the file editing tool (Edit/StrReplace) to update `AI_MODEL=` in `.env`.
+
+   **If B (edit full SQL):**
+
+   Read and **SHOW** the current view SQL from `sql/setup.sql`:
+
+   ```bash
+   cat sql/setup.sql
+   ```
+
+   **SHOW** the user the full SQL content, then:
+
+   ```
+   Edit sql/setup.sql with your changes (e.g. modify the AI prompt, add columns,
+   change filtering logic). Let me know when you're done.
+   ```
+
+   **STOP**: Wait for user to confirm they've finished editing.
+
+   After the user confirms, read the updated file and **SHOW** a preview:
+
+   ```
+   Updated view SQL preview:
+
+   <show full content of sql/setup.sql>
+
+   Apply these changes? [yes/no]
+   ```
+
+   **STOP**: Wait for user approval.
+
+   **Execute (for both A and B):**
 
    ```sql
    USE ROLE ${DEMO_ROLE};
    USE DATABASE ${DEMO_DATABASE};
    USE SCHEMA ${DEMO_SCHEMA};
-
-   CREATE OR REPLACE VIEW SMART_CROWD_COUNTER AS
-     -- (recreated with new model: ${AI_MODEL})
-     ...
+   -- (full view SQL from setup.sql with model: ${AI_MODEL})
    ```
-
-   **STOP**: Show preview and get approval.
-
-   Execute:
 
    ```bash
    uv run scc-setup --demo-role ${DEMO_ROLE}
    ```
 
-5. **Deploy Streamlit app (as demo_role):**
+5. **If option 1 or 3 (redeploy Streamlit app):**
+
+   > The deploy uploads files listed in `app/snowflake.yml` (artifacts: `streamlit_app.py`, `environment.yml`).
+   > Make sure edits are saved to `app/streamlit_app.py` in the project directory before deploying.
+
+   > **CRITICAL:** Always use `--role ${DEMO_ROLE}`. The demo role owns the database and the Streamlit app. Deploying without `--role` uses the connection's default role, which will either fail or deploy to the wrong context.
 
    ```bash
    cd app && snow streamlit deploy --replace --role ${DEMO_ROLE} && cd ..
    ```
 
-   **Get the app URL:**
+   > If the user added new Python files to the app, remind them to add those files to the `artifacts:` list in `app/snowflake.yml` before deploying.
+
+6. **Get the app URL:**
 
    ```bash
    snow streamlit get-url SMART_CROWD_COUNTER \
@@ -1583,16 +1631,16 @@ This is a lightweight flow that redeploys the Streamlit app and optionally recre
      --schema ${DEMO_SCHEMA}
    ```
 
-6. **Show summary:**
+7. **Show summary:**
 
    ```
-   Re-run Complete!
+   Update Complete!
 
    Open your app: [${APP_URL}](${APP_URL})
 
    What was updated:
-     - Streamlit App: SMART_CROWD_COUNTER -> redeployed
-     - View: SMART_CROWD_COUNTER -> recreated (if option 2)
+     - Streamlit App: SMART_CROWD_COUNTER -> redeployed (if option 1 or 3)
+     - View: SMART_CROWD_COUNTER -> updated (if option 2 or 3)
    ```
 
 ## Stopping Points
