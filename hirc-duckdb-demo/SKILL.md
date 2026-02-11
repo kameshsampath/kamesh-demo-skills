@@ -34,7 +34,8 @@ This skill depends on `snow-utils-*` skills which populate .env with:
 **🚫 FORBIDDEN ACTIONS - NEVER DO THESE:**
 
 - NEVER run SQL queries to discover/validate .env values
-- NEVER use flags that bypass user interaction: `--yes`, `-y`, `--auto-setup`, `--auto-approve`, `--quiet`, `--force`, `--non-interactive`
+- NEVER use flags that bypass user interaction: `--auto-setup`, `--auto-approve`, `--quiet`, `--non-interactive`
+- **`--yes` / `-y` is REQUIRED** when executing commands after user has approved the dry-run (CLIs prompt interactively which does not work in Cortex Code's non-interactive shell)
 - NEVER assume user consent - always ask and wait for explicit confirmation
 - NEVER search for .env files outside the project directory
 - NEVER scan user's home directory or other locations for existing files
@@ -1446,11 +1447,13 @@ Options:
       ```bash
       uv run --project <SKILL_DIR> snow-utils-pat \
         create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} \
-        --dot-env-file .env
+        --dot-env-file .env --yes
       ```
 
+      > **⚠️ CRITICAL:** ALWAYS include `--yes` (the CLI prompts interactively which does not work in Cortex Code).
+      > **Fallback for `--yes`:** If not available ("No such option"), pipe: `echo y | <command>`.
       > **🔴 SECURITY:** NEVER use `sed` or shell commands to write the token.
-      > **Fallback:** If `--dot-env-file` is not available ("No such option"), drop that flag -- the CLI writes SA_PAT to `.env` via `--env-path` anyway.
+      > **Fallback for `--dot-env-file`:** If not available, drop that flag -- the CLI writes SA_PAT to `.env` via `--env-path` anyway.
 
       **Verify PAT connection (MANDATORY -- do NOT skip):**
 
