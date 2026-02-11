@@ -19,17 +19,33 @@ These skills depend on [snow-utils-skills](https://github.com/kameshsampath/snow
 | `snow-utils-volumes` | External volume for Iceberg storage |
 | `snow-utils-pat` | Programmatic Access Token for authentication |
 
-> **Note:** Skills will prompt you to install dependencies automatically during setup.
-
-## Installation
-
-```bash
-cortex skill add https://github.com/kameshsampath/kamesh-demo-skills/<skill-name>
-```
+> [!NOTE]
+> Skills will prompt you to install dependencies automatically during setup.
 
 ## Usage
 
-In Cortex Code, invoke by name:
+Demo skills are typically used with a **shared manifest** -- a portable configuration file that captures all resource names and settings so another user can replay the entire demo on their account.
+
+**Setting up from a shared manifest**
+
+```
+Setup from shared manifest
+```
+
+> [!TIP]
+> Example shared manifests are in [`example-manifests/`](./example-manifests/). Copy one into your project directory, adapt the `# ADAPT:` values for your account, and ask Cortex Code to set up from it.
+
+**Or start fresh:**
+
+An example to use _hirc-duckdb-demo_ skill:
+
+First, install the skill:
+
+```bash
+cortex skill add https://github.com/kameshsampath/kamesh-demo-skills/hirc-duckdb-demo
+```
+
+Then invoke it in Cortex Code `cortex`:
 
 ```
 Set up hirc duckdb demo
