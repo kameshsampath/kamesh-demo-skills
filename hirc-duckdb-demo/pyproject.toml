@@ -14,6 +14,7 @@ dependencies = [
 hirc-demo-setup = "hirc_demo.cli:setup"
 hirc-demo-data = "hirc_demo.cli:load_data"
 hirc-demo-rbac = "hirc_demo.cli:grant_rbac"
+hirc-demo-revoke-rbac = "hirc_demo.cli:revoke_rbac"
 hirc-demo-cleanup = "hirc_demo.cli:cleanup"
 
 [project.optional-dependencies]

@@ -59,6 +59,16 @@ Run hirc duckdb demo
 Horizon catalog demo
 ```
 
+To re-experience the RBAC fail-then-fix lesson after completing the demo:
+
+```
+Re-run hirc demo
+```
+
+```
+Show RBAC failure again
+```
+
 The skill guides you through:
 
 1. Creating project directory
@@ -85,6 +95,7 @@ If you prefer step-by-step control:
 | Grant RBAC | `Grant SELECT on FRUITS table to SA_ROLE` |
 | Cleanup | `Cleanup hirc demo resources` |
 | Replay | `Replay hirc demo from manifest` |
+| Re-run demo | `Re-run hirc demo` |
 
 ## Manifest and Replay
 
@@ -132,6 +143,66 @@ Cleanup hirc demo resources
 > [!WARNING]
 > Cleanup only removes Snowflake resources (demo database). The manifest file is preserved with status `REMOVED` to enable future replays. Infrastructure created by `snow-utils-pat` and `snow-utils-volumes` is also preserved.
 
+### Re-run Demo (Pedagogical Loop)
+
+After the demo is complete, you can re-experience the fail-then-fix RBAC lesson without destroying any infrastructure:
+
+```
+Re-run hirc demo
+```
+
+This lightweight flow:
+
+1. Revokes SELECT on the FRUITS table from SA_ROLE
+2. Runs DuckDB demo (fails - no SELECT)
+3. Explains why it failed (RBAC lesson)
+4. Grants SELECT back
+5. Runs DuckDB demo again (succeeds)
+
+> [!TIP]
+> This is ideal for live demos, workshops, or when you want to walk someone through the RBAC concepts again.
+
+## Lifecycle Flowchart
+
+```mermaid
+flowchart TD
+    Start([User invokes skill]) --> FreshOrManifest{Manifest exists?}
+
+    FreshOrManifest -->|No| Fresh[Fresh Setup]
+    Fresh --> S0[Create project dir]
+    S0 --> S1[Setup .env and prereqs]
+    S1 --> S4[Create database]
+    S4 --> S5[Create Iceberg table]
+    S5 --> S6["Run demo - EXPECT FAILURE"]
+    S6 --> S6a[Explain RBAC gap]
+    S6a --> S7[Grant SELECT]
+    S7 --> S8["Run demo - SUCCESS"]
+    S8 --> S9[Verify and mark COMPLETE]
+
+    FreshOrManifest -->|Yes| CheckStatus{Manifest status?}
+
+    CheckStatus -->|IN_PROGRESS| Resume[Resume Flow]
+    Resume --> ResumeFrom[Continue from first PENDING resource]
+    ResumeFrom --> S6
+
+    CheckStatus -->|REMOVED| ReplayRemoved[Replay Flow]
+    ReplayRemoved --> S4
+
+    CheckStatus -->|COMPLETE| Collision{Collision strategy?}
+
+    Collision -->|Use existing| VerifyGrants[Verify grants only]
+    Collision -->|Replace| DropDB[DROP DATABASE then recreate]
+    DropDB --> S4
+    Collision -->|Rename| NewName[Prompt for new DB name]
+    NewName --> S4
+    Collision -->|Re-run demo| Revoke[REVOKE SELECT]
+    Revoke --> S6
+    Collision -->|Cancel| Stop([Stop])
+
+    S9 --> Done([COMPLETE])
+    VerifyGrants --> Done
+```
+
 ## Project Structure
 
 After setup, your project directory contains:
@@ -146,6 +217,7 @@ ${PROJECT_DIR}/
 │   ├── demo_setup.sql           # Database creation
 │   ├── sample_data.sql          # Iceberg table + sample data
 │   ├── rbac.sql                 # Grant SELECT
+│   ├── revoke_rbac.sql          # Revoke SELECT (re-run flow)
 │   └── cleanup.sql              # Remove database
 ├── workbook.ipynb               # Jupyter notebook
 └── pyproject.toml               # Python dependencies
@@ -198,6 +270,7 @@ uv run jupyter notebook workbook.ipynb
 | `sql/demo_setup.sql` | Create demo database |
 | `sql/sample_data.sql` | Create Iceberg table with sample data |
 | `sql/rbac.sql` | Grant SELECT access |
+| `sql/revoke_rbac.sql` | Revoke SELECT (re-run flow) |
 | `sql/cleanup.sql` | Teardown demo resources |
 
 ## License

@@ -170,6 +170,39 @@ def grant_rbac(admin_role: str, schema: str, table: str, dry_run: bool) -> None:
 
 @click.command()
 @click.option("--admin-role", required=True, help="Admin role (from manifest, NOT .env)")
+@click.option("--schema", default="PUBLIC", help="Schema name (default: PUBLIC)")
+@click.option("--table", default="FRUITS", help="Table name (default: FRUITS)")
+@click.option("--dry-run", is_flag=True, help="Preview command without executing")
+def revoke_rbac(admin_role: str, schema: str, table: str, dry_run: bool) -> None:
+    """Revoke SELECT on Iceberg table from SA_ROLE.
+
+    Used by the "Re-run demo" flow to restore the RBAC-failure state
+    so users can re-experience the fail-then-fix pedagogical sequence.
+
+    Runs sql/revoke_rbac.sql with admin_role (CLI arg, from manifest),
+    database_name, schema, table, and sa_role from .env.
+    """
+    env = _require_env(
+        "SNOWFLAKE_DEFAULT_CONNECTION_NAME",
+        "DEMO_DATABASE",
+        "SA_ROLE",
+    )
+    _run_snow_sql(
+        "revoke_rbac.sql",
+        variables={
+            "admin_role": admin_role,
+            "database_name": env["DEMO_DATABASE"],
+            "schema": schema,
+            "table": table,
+            "sa_role": env["SA_ROLE"],
+        },
+        connection=env["SNOWFLAKE_DEFAULT_CONNECTION_NAME"],
+        dry_run=dry_run,
+    )
+
+
+@click.command()
+@click.option("--admin-role", required=True, help="Admin role (from manifest, NOT .env)")
 @click.option("--dry-run", is_flag=True, help="Preview command without executing")
 def cleanup(admin_role: str, dry_run: bool) -> None:
     """Drop demo database and all its tables.

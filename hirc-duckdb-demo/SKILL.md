@@ -1,6 +1,6 @@
 ---
 name: hirc-duckdb-demo
-description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo, export manifest for sharing, share hirc demo manifest, setup from shared manifest, replay from shared manifest, import shared manifest."
+description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo, export manifest for sharing, share hirc demo manifest, setup from shared manifest, replay from shared manifest, import shared manifest, re-run hirc demo, show RBAC failure again, demo fail and fix."
 location: user
 ---
 
@@ -1294,6 +1294,9 @@ Options:
 
 **Trigger phrases:** "replay hirc demo", "replay hirc-duckdb-demo manifest", "recreate demo"
 
+**Direct re-run triggers:** "re-run hirc demo", "show RBAC failure again", "demo fail and fix"
+> If the user says one of these, read the manifest. If status is `COMPLETE`, skip the collision prompt and go directly to the **Re-run Flow** section. If status is not `COMPLETE`, fall through to the normal Replay Flow below.
+
 **IMPORTANT:** This is the **hirc-duckdb-demo** skill. Only replay sections marked `<!-- START -- hirc-duckdb-demo:* -->`.
 
 1. **Read manifest:**
@@ -1554,7 +1557,8 @@ Options:
    1. Use existing → skip database creation, verify grants only
    2. Replace → DROP DATABASE then recreate (DESTRUCTIVE — all tables lost)
    3. Rename → prompt for new database name
-   4. Cancel → stop replay
+   4. Re-run demo → revoke SELECT, re-experience fail-then-fix, re-grant
+   5. Cancel → stop replay
    ```
 
    **⚠️ STOP**: Wait for user choice.
@@ -1564,6 +1568,7 @@ Options:
    | **Use existing** | Skip database creation, verify grants to `SA_ROLE` are still valid. |
    | **Replace** | Confirm with "Type 'yes, destroy' to confirm". `DROP DATABASE {DEMO_DATABASE}`, then proceed to step 6. |
    | **Rename** | Ask for new database name. Update `DEMO_DATABASE` in `.env` and proceed to step 6. |
+   | **Re-run demo** | Keep all infrastructure. Execute **Re-run Flow** (see below): REVOKE SELECT, demo failure, GRANT SELECT, demo success. |
    | **Cancel** | Stop replay. |
 
 6. **Display replay plan:**
@@ -1635,6 +1640,96 @@ Options:
 5. **Update manifest section using unique markers:**
 
    Use the **file editing tool** (Edit/StrReplace) to replace the entire block from `<!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->` to `<!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->` as each resource is created.
+
+## Re-run Flow
+
+**Trigger phrases:** "re-run hirc demo", "show RBAC failure again", "demo fail and fix"
+
+**Precondition:** Manifest status must be `COMPLETE`. If not COMPLETE, use Resume Flow (IN_PROGRESS) or Replay Flow (REMOVED) instead.
+
+This is a lightweight pedagogical loop that re-experiences the fail-then-fix RBAC sequence **without destroying or recreating any infrastructure**. All resources (database, table, data) remain intact.
+
+1. **Read manifest and verify COMPLETE status:**
+
+   ```bash
+   cat .snow-utils/snow-utils-manifest.md 2>/dev/null
+   ```
+
+   If status is not `COMPLETE`, inform the user and suggest the appropriate flow.
+
+2. **Read ADMIN_ROLE from manifest** (stored in metadata, NOT in `.env`).
+
+3. **Display re-run plan:**
+
+   ```
+   Re-running the fail-then-fix RBAC demo:
+
+     Step 1: REVOKE SELECT on ${DEMO_DATABASE}.PUBLIC.FRUITS from ${SA_ROLE}
+     Step 2: Run DuckDB demo (EXPECT FAILURE - no SELECT)
+     Step 3: Explain why it failed (RBAC lesson)
+     Step 4: GRANT SELECT back to ${SA_ROLE}
+     Step 5: Run DuckDB demo again (SUCCESS)
+
+   Infrastructure is preserved — no databases or tables will be dropped.
+
+   Proceed? [yes/no]
+   ```
+
+   **STOP**: Wait for user confirmation.
+
+4. **REVOKE SELECT — dry-run preview:**
+
+   Display the SQL that will be executed:
+
+   ```
+   ╔══════════════════════════════════════════════════════════════════╗
+   ║        📋 SQL TO BE EXECUTED (revoke_rbac.sql)                   ║
+   ╠══════════════════════════════════════════════════════════════════╣
+   ║                                                                  ║
+   ║  USE ROLE ${ADMIN_ROLE};                                         ║
+   ║  REVOKE SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS           ║
+   ║    FROM ROLE ${SA_ROLE};                                         ║
+   ║                                                                  ║
+   ╚══════════════════════════════════════════════════════════════════╝
+   ```
+
+   **STOP**: Show preview and get approval.
+
+5. **Execute REVOKE:**
+
+   ```bash
+   uv run --project <SKILL_DIR> hirc-demo-revoke-rbac --admin-role ${ADMIN_ROLE}
+   ```
+
+   > Reads DEMO_DATABASE, SA_ROLE from `.env`. `--admin-role` value comes from manifest. Defaults: schema=PUBLIC, table=FRUITS.
+
+6. **Update manifest:** Reset "Demo Run" (row 4) to `PENDING` and "RBAC Grant" (row 5) to `BLOCKED_BY:4`. Use the **file editing tool** (Edit/StrReplace).
+
+7. **Execute Step 6 (Run Demo - Expect Failure):**
+
+   Follow the instructions in **Step 6: Run Demo (Expect Failure!)** exactly. Display the preview box, run the DuckDB demo, show the failure.
+
+   After failure, update manifest: mark "Demo Run" (row 4) as `DONE`, change "RBAC Grant" (row 5) from `BLOCKED_BY:4` to `PENDING`.
+
+8. **Execute Step 6a (Why Did It Fail?):**
+
+   Follow **Step 6a: Why Did It Fail? (Interactive Learning)** — display the RBAC explanation. Wait for user to confirm ready to fix.
+
+9. **Execute Step 7 (Grant Access):**
+
+   Follow **Step 7: Grant Access (RBAC)** — display the GRANT SQL preview, get approval, execute.
+
+   Update manifest: mark "RBAC Grant" (row 5) as `DONE`.
+
+10. **Execute Step 8 (Run Demo Again - Success!):**
+
+    Follow **Step 8: Run Demo Again (Success!)** — run DuckDB demo, display success box.
+
+11. **Restore manifest to COMPLETE:**
+
+    Use the **file editing tool** (Edit/StrReplace) to set status back to `COMPLETE` with all 5 rows as `DONE`.
+
+    > The re-run flow is a pedagogical loop — the manifest returns to the same COMPLETE state it started in.
 
 ## Stopping Points
 
@@ -1708,6 +1803,23 @@ uv run --project <SKILL_DIR> hirc-demo-rbac --admin-role <ROLE> [--dry-run] [--s
 
 **Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `DEMO_DATABASE`, `SA_ROLE`
 
+### `hirc-demo-revoke-rbac`
+
+Revokes SELECT on Iceberg table from SA_ROLE. Used by the Re-run Flow to restore the RBAC-failure state.
+
+```bash
+uv run --project <SKILL_DIR> hirc-demo-revoke-rbac --admin-role <ROLE> [--dry-run] [--schema PUBLIC] [--table FRUITS]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--admin-role` | **Yes** | - | Admin role (from manifest, NOT .env) |
+| `--schema` | No | `PUBLIC` | Schema name |
+| `--table` | No | `FRUITS` | Table name |
+| `--dry-run` | No | false | Preview command without executing |
+
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `DEMO_DATABASE`, `SA_ROLE`
+
 ### `hirc-demo-cleanup`
 
 Drops the demo database and all its tables.
@@ -1737,6 +1849,7 @@ uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role <ROLE> [--dry-run]
 | `GRANT USAGE ON DATABASE` | https://docs.snowflake.com/en/sql-reference/sql/grant-privilege |
 | `GRANT USAGE ON SCHEMA` | https://docs.snowflake.com/en/sql-reference/sql/grant-privilege |
 | `GRANT SELECT ON TABLE` | https://docs.snowflake.com/en/sql-reference/sql/grant-privilege |
+| `REVOKE SELECT ON TABLE` | https://docs.snowflake.com/en/sql-reference/sql/revoke-privilege |
 
 ## Troubleshooting
 
@@ -1771,6 +1884,7 @@ ${PROJECT_DIR}/
 │   ├── demo_setup.sql           # Database creation
 │   ├── sample_data.sql          # Iceberg table creation
 │   ├── rbac.sql                 # Grant SELECT
+│   ├── revoke_rbac.sql          # Revoke SELECT (re-run flow)
 │   └── cleanup.sql              # Remove database
 ├── workbook.ipynb               # Jupyter notebook
 └── pyproject.toml               # Python dependencies
