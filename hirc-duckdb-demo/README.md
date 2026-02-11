@@ -119,6 +119,14 @@ Then in Cortex Code:
 Replay hirc demo from manifest
 ```
 
+Or replay directly from a remote URL (no local file needed):
+
+```
+Setup from https://github.com/kameshsampath/kamesh-demo-skills/blob/main/example-manifests/hirc-duckdb-demo-manifest.md
+```
+
+Cortex Code will translate the GitHub URL to a raw download URL, confirm the download, save the manifest to the current directory, and proceed with name adaptation and replay.
+
 > [!NOTE]
 > The manifest contains resource names and configuration, not credentials. Each user needs their own Snowflake connection and AWS credentials.
 

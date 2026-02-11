@@ -28,12 +28,18 @@ Demo skills are typically used with a **shared manifest** -- a portable configur
 
 **Setting up from a shared manifest**
 
+You can use a local file or a remote URL:
+
 ```
 Setup from shared manifest
 ```
 
+```
+Setup from https://github.com/kameshsampath/kamesh-demo-skills/blob/main/example-manifests/hirc-duckdb-demo-manifest.md
+```
+
 > [!TIP]
-> Example shared manifests are in [`example-manifests/`](./example-manifests/). Copy one into your project directory, adapt the `# ADAPT:` values for your account, and ask Cortex Code to set up from it.
+> Example shared manifests are in [`example-manifests/`](./example-manifests/). Use them directly via URL or copy to your project directory. Cortex Code will download, adapt `# ADAPT:` values for your account, and replay.
 
 **Or start fresh:**
 

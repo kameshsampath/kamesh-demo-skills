@@ -1,6 +1,6 @@
 ---
 name: hirc-duckdb-demo
-description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo, export manifest for sharing, share hirc demo manifest, setup from shared manifest, replay from shared manifest, import shared manifest, re-run hirc demo, show RBAC failure again, demo fail and fix."
+description: "Set up Horizon Iceberg REST Catalog demo to query Snowflake Iceberg tables with DuckDB. Prerequisites: snow-utils-pat skill (which sets up infrastructure and PAT), then snow-utils-volumes which setups external volumes with defined object storage. Triggers: hirc duckdb demo, horizon catalog demo, duckdb iceberg, query iceberg duckdb, set up hirc demo, replay hirc demo, replay hirc-duckdb-demo manifest, recreate demo, export manifest for sharing, share hirc demo manifest, setup from shared manifest, replay from shared manifest, import shared manifest, setup from manifest URL, replay from URL, use manifest from URL, re-run hirc demo, show RBAC failure again, demo fail and fix."
 location: user
 ---
 
@@ -127,6 +127,42 @@ cd "${PROJECT_DIR}"
 
 **🔴 CRITICAL: Before proceeding, detect ALL manifests and let the user choose.**
 
+#### Remote Manifest URL Detection
+
+If the user provides a URL (in their prompt or pasted), detect and normalize it **before** local manifest detection:
+
+**Supported URL patterns and translation rules:**
+
+- **GitHub blob:** `https://github.com/{owner}/{repo}/blob/{branch}/{path}` → replace host with `raw.githubusercontent.com` and remove `/blob/` segment → `https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{path}`
+- **GitHub raw:** `https://raw.githubusercontent.com/...` → use as-is
+- **GitHub gist:** `https://gist.github.com/{user}/{id}` → append `/raw` if not already present
+- **Any other HTTPS URL ending in `.md`** → use as-is
+
+**After translating, show user and confirm:**
+
+```
+Found manifest URL. Download URL:
+  <translated_raw_url>
+
+Download to current directory as <filename>? [yes/no]
+```
+
+**⚠️ STOP**: Wait for user confirmation.
+
+**If yes:**
+
+```bash
+curl -fSL -o <filename> "<translated_raw_url>"
+```
+
+> **Filename derivation:** Extract the filename from the URL path (e.g., `hirc-duckdb-demo-manifest.md`). If the file already exists locally, ask user: overwrite / rename / cancel.
+
+**If no:** Stop.
+
+After successful download, continue with local manifest detection below — the downloaded file will be picked up by the `*-manifest.md` glob.
+
+---
+
 A project directory may contain:
 
 - **Working manifest:** `.snow-utils/snow-utils-manifest.md` (created during a previous run, may be partial/IN_PROGRESS)
@@ -188,7 +224,7 @@ Which manifest should we use?
 | Choice | Action |
 |--------|--------|
 | **A — Resume working** | Use working manifest → check its Status (below) |
-| **B — Use shared** | Backup working to `.snow-utils/snow-utils-manifest.md.bak`, copy shared to `.snow-utils/snow-utils-manifest.md` → Step 0-adapt |
+| **B — Use shared** | `mkdir -p .snow-utils && chmod 700 .snow-utils`, backup working to `.snow-utils/snow-utils-manifest.md.bak`, copy shared to `.snow-utils/snow-utils-manifest.md` → Step 0-adapt |
 | **C — Cancel** | Stop. |
 
 **If ONLY working manifest exists, check its status:**
@@ -198,7 +234,7 @@ Which manifest should we use?
 3. If `REMOVED`: Proceed with **Replay Flow**
 
 **If ONLY shared manifest exists:**
-Copy to `.snow-utils/snow-utils-manifest.md` → Step 0-adapt.
+`mkdir -p .snow-utils && chmod 700 .snow-utils`, then copy to `.snow-utils/snow-utils-manifest.md` → Step 0-adapt.
 
 ### Step 0-adapt: Shared Manifest Adapt-Check
 
@@ -1001,7 +1037,9 @@ Share this file with your colleague. They can open it in Cursor and ask Cortex C
 
 ### Setup from Shared Manifest Flow
 
-**Trigger phrases:** "setup from shared manifest", "replay from shared manifest", "import shared manifest"
+**Trigger phrases:** "setup from shared manifest", "replay from shared manifest", "import shared manifest", "setup from manifest URL", "replay from URL", "use manifest from `<url>`"
+
+**If user provides a URL:** Apply the **Remote Manifest URL Detection** rules from Step 0-manifest-check above — translate the URL, confirm download with user, `curl` to current directory. Then continue below.
 
 When Cortex Code detects a shared manifest (file with `## shared_info` section or `<!-- COCO_INSTRUCTION -->` comment):
 
