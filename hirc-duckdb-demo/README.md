@@ -101,25 +101,33 @@ If you prefer step-by-step control:
 
 The skill creates a **manifest file** (`.snow-utils/snow-utils-manifest.md`) that tracks all created resources. This manifest serves multiple purposes:
 
-### Shareable Demo Script
+### Export Manifest for Sharing
 
-The manifest is a portable configuration that any user with Cortex Code can use to recreate the demo:
-
-```bash
-# Share your project directory (including manifest)
-zip -r hirc-demo.zip my-hirc-demo/
-
-# Another user can replay from manifest
-cd my-hirc-demo
-```
-
-Then in Cortex Code:
+After completing the demo, you can export your manifest so another user can replay the entire setup on their account:
 
 ```
-Replay hirc demo from manifest
+Export manifest for sharing
 ```
 
-Or replay directly from a remote URL (no local file needed):
+Cortex Code will:
+1. Verify all skill sections are `COMPLETE`
+2. Create `hirc-duckdb-demo-manifest.md` in the project root
+3. Set all statuses to `REMOVED` (so the receiver replays from scratch)
+4. Add `# ADAPT:` markers on user-prefixed values (so the receiver can adapt names)
+5. Inject `COCO_INSTRUCTION`, `shared_info`, and `required_skills` sections
+
+Share the exported file via email, Slack, or push it to a GitHub repo. The receiver opens it in Cortex Code and says "setup from shared manifest".
+
+> [!NOTE]
+> The exported manifest contains resource names and configuration, not credentials. Each user needs their own Snowflake connection and AWS credentials.
+
+### Replay from Shared Manifest
+
+Another user can replay from a local manifest file or a remote URL:
+
+```
+Setup from shared manifest
+```
 
 ```
 Setup from https://github.com/kameshsampath/kamesh-demo-skills/blob/main/example-manifests/hirc-duckdb-demo-manifest.md

@@ -41,6 +41,16 @@ Setup from https://github.com/kameshsampath/kamesh-demo-skills/blob/main/example
 > [!TIP]
 > Example shared manifests are in [`example-manifests/`](./example-manifests/). Use them directly via URL or copy to your project directory. Cortex Code will download, adapt `# ADAPT:` values for your account, and replay.
 
+**Exporting your own manifest to share:**
+
+After completing a demo, export a shareable manifest:
+
+```
+Export manifest for sharing
+```
+
+This creates a portable `<project>-manifest.md` file with `# ADAPT:` markers that another user can replay on their account.
+
 **Or start fresh:**
 
 An example to use _hirc-duckdb-demo_ skill:
