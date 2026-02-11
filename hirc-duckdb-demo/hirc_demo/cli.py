@@ -85,16 +85,16 @@ def _run_snow_sql(
 
 
 @click.command()
+@click.option("--admin-role", required=True, help="Admin role (from manifest, NOT .env)")
 @click.option("--dry-run", is_flag=True, help="Preview command without executing")
-def setup(dry_run: bool) -> None:
+def setup(admin_role: str, dry_run: bool) -> None:
     """Create demo database with USAGE grants and set external volume.
 
-    Runs sql/demo_setup.sql with admin_role, database_name, sa_role,
-    and external_volume_name from .env.
+    Runs sql/demo_setup.sql with admin_role (CLI arg, from manifest),
+    database_name, sa_role, and external_volume_name from .env.
     """
     env = _require_env(
         "SNOWFLAKE_DEFAULT_CONNECTION_NAME",
-        "ADMIN_ROLE",
         "DEMO_DATABASE",
         "SA_ROLE",
         "EXTERNAL_VOLUME_NAME",
@@ -102,7 +102,7 @@ def setup(dry_run: bool) -> None:
     _run_snow_sql(
         "demo_setup.sql",
         variables={
-            "admin_role": env["ADMIN_ROLE"],
+            "admin_role": admin_role,
             "database_name": env["DEMO_DATABASE"],
             "sa_role": env["SA_ROLE"],
             "external_volume_name": env["EXTERNAL_VOLUME_NAME"],
@@ -113,23 +113,23 @@ def setup(dry_run: bool) -> None:
 
 
 @click.command()
+@click.option("--admin-role", required=True, help="Admin role (from manifest, NOT .env)")
 @click.option("--dry-run", is_flag=True, help="Preview command without executing")
-def load_data(dry_run: bool) -> None:
+def load_data(admin_role: str, dry_run: bool) -> None:
     """Create Iceberg table and load sample data.
 
-    Runs sql/sample_data.sql with admin_role, database_name,
-    and external_volume_name from .env.
+    Runs sql/sample_data.sql with admin_role (CLI arg, from manifest),
+    database_name, and external_volume_name from .env.
     """
     env = _require_env(
         "SNOWFLAKE_DEFAULT_CONNECTION_NAME",
-        "ADMIN_ROLE",
         "DEMO_DATABASE",
         "EXTERNAL_VOLUME_NAME",
     )
     _run_snow_sql(
         "sample_data.sql",
         variables={
-            "admin_role": env["ADMIN_ROLE"],
+            "admin_role": admin_role,
             "database_name": env["DEMO_DATABASE"],
             "external_volume_name": env["EXTERNAL_VOLUME_NAME"],
         },
@@ -139,25 +139,25 @@ def load_data(dry_run: bool) -> None:
 
 
 @click.command()
+@click.option("--admin-role", required=True, help="Admin role (from manifest, NOT .env)")
 @click.option("--schema", default="PUBLIC", help="Schema name (default: PUBLIC)")
 @click.option("--table", default="FRUITS", help="Table name (default: FRUITS)")
 @click.option("--dry-run", is_flag=True, help="Preview command without executing")
-def grant_rbac(schema: str, table: str, dry_run: bool) -> None:
+def grant_rbac(admin_role: str, schema: str, table: str, dry_run: bool) -> None:
     """Grant SELECT on Iceberg table to SA_ROLE.
 
-    Runs sql/rbac.sql with admin_role, database_name, schema, table,
-    and sa_role from .env.
+    Runs sql/rbac.sql with admin_role (CLI arg, from manifest),
+    database_name, schema, table, and sa_role from .env.
     """
     env = _require_env(
         "SNOWFLAKE_DEFAULT_CONNECTION_NAME",
-        "ADMIN_ROLE",
         "DEMO_DATABASE",
         "SA_ROLE",
     )
     _run_snow_sql(
         "rbac.sql",
         variables={
-            "admin_role": env["ADMIN_ROLE"],
+            "admin_role": admin_role,
             "database_name": env["DEMO_DATABASE"],
             "schema": schema,
             "table": table,
@@ -169,21 +169,22 @@ def grant_rbac(schema: str, table: str, dry_run: bool) -> None:
 
 
 @click.command()
+@click.option("--admin-role", required=True, help="Admin role (from manifest, NOT .env)")
 @click.option("--dry-run", is_flag=True, help="Preview command without executing")
-def cleanup(dry_run: bool) -> None:
+def cleanup(admin_role: str, dry_run: bool) -> None:
     """Drop demo database and all its tables.
 
-    Runs sql/cleanup.sql with admin_role and database_name from .env.
+    Runs sql/cleanup.sql with admin_role (CLI arg, from manifest)
+    and database_name from .env.
     """
     env = _require_env(
         "SNOWFLAKE_DEFAULT_CONNECTION_NAME",
-        "ADMIN_ROLE",
         "DEMO_DATABASE",
     )
     _run_snow_sql(
         "cleanup.sql",
         variables={
-            "admin_role": env["ADMIN_ROLE"],
+            "admin_role": admin_role,
             "database_name": env["DEMO_DATABASE"],
         },
         connection=env["SNOWFLAKE_DEFAULT_CONNECTION_NAME"],

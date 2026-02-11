@@ -40,7 +40,9 @@ This skill depends on `snow-utils-*` skills which populate .env with:
 - NEVER search for .env files outside the project directory
 - NEVER scan user's home directory or other locations for existing files
 - **NEVER offer to drop SNOW_UTILS_DB** - it is shared infrastructure used by ALL skills/projects
+- **NEVER use sed/awk/bash to edit manifest files** -- use the file editing tool (Edit/StrReplace) to update manifest content. sed commands fail on macOS and with complex markdown.
 - **NEVER guess or invent CLI options** - ONLY use options from the CLI Reference tables; if a command fails with "No such option", run `<command> --help` and use ONLY those options
+- **NEVER run Step 7 (RBAC grant) before Step 6 (demo failure)** - the fail-then-fix sequence is the core teaching purpose of this demo. Step 6 MUST execute and the failure MUST be shown and explained to the user before granting SELECT. Do NOT "optimize" by combining data loading and RBAC into one batch.
 - Trust .env - if values present, they are correct
 - If values missing, direct user to prerequisite skill (don't search for files)
 
@@ -616,10 +618,10 @@ Proceed with these settings?
 **Execute (uses user's connection - requires admin_role):**
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-setup
+uv run --project <SKILL_DIR> hirc-demo-setup --admin-role ${ADMIN_ROLE}
 ```
 
-> Reads ADMIN_ROLE, DEMO_DATABASE, SA_ROLE, EXTERNAL_VOLUME_NAME from `.env` automatically.
+> Reads DEMO_DATABASE, SA_ROLE, EXTERNAL_VOLUME_NAME from `.env`. `--admin-role` value comes from manifest (Step 2a).
 
 **Update manifest (IN_PROGRESS):**
 
@@ -676,14 +678,16 @@ uv run --project <SKILL_DIR> hirc-demo-setup
 **Execute (uses admin_role - owns the database and table):**
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-data
+uv run --project <SKILL_DIR> hirc-demo-data --admin-role ${ADMIN_ROLE}
 ```
 
-> Reads ADMIN_ROLE, DEMO_DATABASE, EXTERNAL_VOLUME_NAME from `.env` automatically.
+> Reads DEMO_DATABASE, EXTERNAL_VOLUME_NAME from `.env`. `--admin-role` value comes from manifest (Step 2a).
 
 > **Note:** admin_role creates and owns the table. SA_ROLE only has USAGE on database/schema (no SELECT yet).
 
 **Update manifest:** Mark "Iceberg Table" as DONE.
+
+> **🔴 NEXT STEP IS THE DEMO, NOT THE RBAC GRANT.** Do NOT skip ahead to grant SELECT. The demo MUST fail first to teach the user about Snowflake RBAC.
 
 ### Step 6: Run Demo (Expect Failure!)
 
@@ -743,7 +747,7 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 
 **⚠️ STOP**: Show user the result and explain (Step 6a if failed, Step 8 if succeeded).
 
-**Update manifest status to DEMO_FAIL (if failed):**
+**Update manifest status to DEMO_FAIL (if failed):** Use the file editing tool (Edit/StrReplace) to change the status:
 
 ```markdown
 **Status:** DEMO_FAIL
@@ -819,6 +823,8 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 
 ### Step 7: Grant Access (RBAC)
 
+> **🔴 PREREQUISITE:** Step 6 (Run Demo - Expect Failure) MUST have been executed and the failure shown to the user BEFORE this step. The fail-then-fix sequence is the core teaching purpose of this demo. If Step 6 was skipped, go back and run it now.
+
 **Display SQL Preview (inline, not via bash to avoid truncation):**
 
 ```
@@ -840,10 +846,10 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 **Execute (uses user's connection - requires admin_role):**
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-rbac
+uv run --project <SKILL_DIR> hirc-demo-rbac --admin-role ${ADMIN_ROLE}
 ```
 
-> Reads ADMIN_ROLE, DEMO_DATABASE, SA_ROLE from `.env`. Defaults: schema=PUBLIC, table=FRUITS.
+> Reads DEMO_DATABASE, SA_ROLE from `.env`. `--admin-role` value comes from manifest (Step 2a). Defaults: schema=PUBLIC, table=FRUITS.
 
 **Update manifest:** Mark "RBAC Grant: SELECT on FRUITS" as DONE.
 
@@ -905,7 +911,7 @@ set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
-**Update manifest status to DEMO_SUCCESS:**
+**Update manifest status to DEMO_SUCCESS:** Use the file editing tool (Edit/StrReplace) to change the status:
 
 ```markdown
 **Status:** DEMO_SUCCESS
@@ -934,7 +940,7 @@ set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
 ### Cleanup Instructions
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-cleanup
+uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role ${ADMIN_ROLE}
 ```
 <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
 ```
@@ -1167,7 +1173,7 @@ Options:
    Will remove: Database ${DEMO_DATABASE} and all its tables
    
    Command:
-   uv run --project <SKILL_DIR> hirc-demo-cleanup
+   uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role ${ADMIN_ROLE}
    
    Proceed? [yes/no]
    ```
@@ -1177,7 +1183,7 @@ Options:
 4. **On confirmation:** Execute cleanup using the CLI command:
 
    ```bash
-   uv run --project <SKILL_DIR> hirc-demo-cleanup
+   uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role ${ADMIN_ROLE}
    ```
 
    > **NEVER run raw SQL for cleanup.** ALWAYS use the CLI command above.
@@ -1186,7 +1192,7 @@ Options:
 
    **IMPORTANT:** Do NOT delete the manifest file. Update the status to REMOVED so the demo can be replayed later.
 
-   **CRITICAL:** Use the full unique block markers for replacement to avoid "found N times" errors:
+   **CRITICAL:** Use the **file editing tool** (Edit/StrReplace) with the full unique block markers to avoid "found N times" errors. NEVER use `sed` or shell commands for this:
 
    ```
    old_string: <!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->
@@ -1368,7 +1374,7 @@ Options:
 
       ```bash
       # Validate critical values were extracted
-      for var in SA_USER SA_ROLE SNOW_UTILS_DB EXTERNAL_VOLUME_NAME DEMO_DATABASE; do
+      for var in SA_USER SA_ROLE SNOW_UTILS_DB EXTERNAL_VOLUME_NAME DEMO_DATABASE ADMIN_ROLE; do
         val=$(eval echo \$$var)
         if [ -z "$val" ]; then
           echo "WARNING: Could not extract ${var} from manifest. Check manifest format."
@@ -1577,7 +1583,7 @@ Options:
 
 8. **Update manifest section using unique markers:**
 
-   Replace entire block from `<!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->` to `<!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->` with updated status COMPLETE.
+   Use the **file editing tool** (Edit/StrReplace) to replace the entire block from `<!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->` to `<!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->` with updated status COMPLETE.
 
 ## Resume Flow
 
@@ -1618,7 +1624,7 @@ Options:
 
 5. **Update manifest section using unique markers:**
 
-   Replace entire block from `<!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->` to `<!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->` as each resource is created.
+   Use the **file editing tool** (Edit/StrReplace) to replace the entire block from `<!-- START -- hirc-duckdb-demo:{DEMO_DATABASE} -->` to `<!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->` as each resource is created.
 
 ## Stopping Points
 
@@ -1650,58 +1656,62 @@ All commands auto-load `.env` and pass required variables to `snow sql` with tem
 Creates the demo database with USAGE grants and sets the external volume.
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-setup [--dry-run]
+uv run --project <SKILL_DIR> hirc-demo-setup --admin-role <ROLE> [--dry-run]
 ```
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
+| `--admin-role` | **Yes** | - | Admin role (from manifest, NOT .env) |
 | `--dry-run` | No | false | Preview command without executing |
 
-**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`, `SA_ROLE`, `EXTERNAL_VOLUME_NAME`
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `DEMO_DATABASE`, `SA_ROLE`, `EXTERNAL_VOLUME_NAME`
 
 ### `hirc-demo-data`
 
 Creates Iceberg table and loads sample data.
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-data [--dry-run]
+uv run --project <SKILL_DIR> hirc-demo-data --admin-role <ROLE> [--dry-run]
 ```
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
+| `--admin-role` | **Yes** | - | Admin role (from manifest, NOT .env) |
 | `--dry-run` | No | false | Preview command without executing |
 
-**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`, `EXTERNAL_VOLUME_NAME`
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `DEMO_DATABASE`, `EXTERNAL_VOLUME_NAME`
 
 ### `hirc-demo-rbac`
 
 Grants SELECT on Iceberg table to SA_ROLE.
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-rbac [--dry-run] [--schema PUBLIC] [--table FRUITS]
+uv run --project <SKILL_DIR> hirc-demo-rbac --admin-role <ROLE> [--dry-run] [--schema PUBLIC] [--table FRUITS]
 ```
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
+| `--admin-role` | **Yes** | - | Admin role (from manifest, NOT .env) |
 | `--schema` | No | `PUBLIC` | Schema name |
 | `--table` | No | `FRUITS` | Table name |
 | `--dry-run` | No | false | Preview command without executing |
 
-**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`, `SA_ROLE`
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `DEMO_DATABASE`, `SA_ROLE`
 
 ### `hirc-demo-cleanup`
 
 Drops the demo database and all its tables.
 
 ```bash
-uv run --project <SKILL_DIR> hirc-demo-cleanup [--dry-run]
+uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role <ROLE> [--dry-run]
 ```
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
+| `--admin-role` | **Yes** | - | Admin role (from manifest, NOT .env) |
 | `--dry-run` | No | false | Preview command without executing |
 
-**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `ADMIN_ROLE`, `DEMO_DATABASE`
+**Required .env:** `SNOWFLAKE_DEFAULT_CONNECTION_NAME`, `DEMO_DATABASE`
 
 ## SQL Reference (Snowflake Documentation)
 
