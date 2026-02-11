@@ -17,3 +17,5 @@ keywords:
     - iceberg
     - duckdb
     - data-engineering
+    - cortex-aisql
+    - streamlit

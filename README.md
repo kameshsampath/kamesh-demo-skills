@@ -7,6 +7,7 @@ A collection of [Cortex Code](https://docs.snowflake.com/en/developer-guide/snow
 | Skill | Description | Demo (w/o CoCo) |
 |-------|-------------|-----------------|
 | [hirc-duckdb-demo](./hirc-duckdb-demo/) | Query Snowflake Iceberg tables with DuckDB via Horizon Iceberg REST Catalog | [hirc-duckdb-demo](https://github.com/kameshsampath/hirc-duckdb-demo) |
+| [smart-crowd-counter](./smart-crowd-counter/) | Streamlit app using Cortex AISQL to analyze conference photos, count attendees, and detect raised hands | [smart-crowd-counter](https://github.com/kameshsampath/smart-crowd-counter) |
 
 ## Prerequisites
 
