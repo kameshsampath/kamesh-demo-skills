@@ -1196,14 +1196,25 @@ Cleanup is **two-phase**: first drop the database using the demo role (which own
 
    **STOP**: Wait for user to type `yes, destroy`. Any other input cancels cleanup.
 
-5. **On confirmation:** Execute cleanup using the CLI commands (in order):
+5. **On confirmation:** Execute cleanup in **two separate commands** (in order):
+
+   **Phase 1 -- Drop database (as demo role, the DB owner):**
 
    ```bash
    uv run scc-cleanup --demo-role ${DEMO_ROLE}
+   ```
+
+   > `scc-cleanup` only accepts `--demo-role`. Do NOT pass `--admin-role` to this command.
+
+   **Phase 2 -- Revoke and drop the demo role (as admin):**
+
+   ```bash
    uv run scc-cleanup-role --admin-role ${ADMIN_ROLE} --demo-role ${DEMO_ROLE}
    ```
 
-   > **NEVER run raw SQL for cleanup.** ALWAYS use the CLI commands above.
+   > `scc-cleanup-role` requires both `--admin-role` and `--demo-role`.
+
+   > **NEVER run raw SQL for cleanup.** ALWAYS use the CLI commands above. **NEVER combine these into a single command.**
 
 6. **Update manifest section using unique markers:**
 
