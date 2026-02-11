@@ -1573,7 +1573,8 @@ Options:
    
      Database:      ${DEMO_DATABASE}
      Iceberg Table: FRUITS
-     Grants:        USAGE, SELECT to ${SA_ROLE}
+     Demo Run:      DuckDB query (MUST FAIL - shows RBAC gap)
+     RBAC Grant:    SELECT to ${SA_ROLE} (only AFTER demo failure)
    
    Proceed? [yes/no]
    ```
@@ -1585,6 +1586,8 @@ Options:
    > **⚠️ MANDATORY:** Display every SQL preview box (Steps 4-8) BEFORE executing each step, even in replay.
    > Replay reduces confirmation stops but NEVER skips the preview boxes — they are educational and serve as an audit trail.
    > Flow: show preview box → execute → show next preview box → execute → ...
+   >
+   > **🔴 NEVER skip the demo failure step (Step 6), even in replay.** The fail-then-fix sequence is the core teaching purpose. After loading data (Step 5), you MUST run the DuckDB demo, show the failure and explanation (Step 6/6a), THEN grant SELECT (Step 7). The manifest tracks this as row 4 ("Demo Run") with BLOCKED_BY:4 on row 5 ("RBAC Grant").
 
 8. **Update manifest section using unique markers:**
 
@@ -1615,7 +1618,8 @@ Options:
      DONE: Grant USAGE
      
      PENDING: Iceberg Table FRUITS
-     PENDING: Grant SELECT
+     PENDING: Demo Run (DuckDB query - MUST FAIL before RBAC grant)
+     BLOCKED: RBAC Grant SELECT (blocked until Demo Run completes)
    
    Continue from Iceberg Table creation? [yes/no]
    ```
@@ -1626,6 +1630,7 @@ Options:
 
    > **⚠️ MANDATORY:** Display SQL preview boxes for each PENDING step BEFORE executing.
    > Skip boxes for DONE steps only. NEVER collapse or summarize — show each box in full.
+   > **🔴 NEVER skip the demo failure step.** If "Demo Run" is PENDING, run Step 6 and show the failure before proceeding to RBAC Grant.
 
 5. **Update manifest section using unique markers:**
 
