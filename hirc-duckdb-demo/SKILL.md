@@ -90,19 +90,14 @@ For `snow sql`, `envsubst`, or other raw shell commands, use `set -a && source .
 **First, check if already in a project directory:**
 
 ```bash
-if [ -f .env ] && [ -d .snow-utils ]; then
+if [ -f .env ] || [ -d .snow-utils ]; then
   echo "✓ Detected existing project directory: $(pwd)"
-  echo "  Found: .env, .snow-utils/"
-  # Skip to Step 1a or Resume Flow based on manifest status
+  [ -f .env ] && echo "  Found: .env"
+  [ -d .snow-utils ] && echo "  Found: .snow-utils/"
 fi
 ```
 
-**If existing project detected:**
-
-- Check manifest status (`grep "Status:" .snow-utils/snow-utils-manifest.md`)
-- If `IN_PROGRESS` or `DEMO_FAIL`: Use **Resume Flow** (skip to appropriate step)
-- If `COMPLETE`: Inform user demo already exists, ask if they want to re-run
-- If `REMOVED`: Proceed with **Replay Flow**
+**If existing project detected → go to Step 0-manifest-check.**
 
 **If NOT in existing project, ask for directory name:**
 
@@ -122,7 +117,148 @@ cd "${PROJECT_DIR}"
 
 > **📍 IMPORTANT:** All subsequent steps run within `${PROJECT_DIR}/`. The manifest, .env, and all artifacts live here.
 
+### Step 0-manifest-check: Manifest Detection & Selection
+
+**🔴 CRITICAL: Before proceeding, detect ALL manifests and let the user choose.**
+
+A project directory may contain:
+
+- **Working manifest:** `.snow-utils/snow-utils-manifest.md` (created during a previous run, may be partial/IN_PROGRESS)
+- **Shared manifest:** `*-manifest.md` in the project root (received from another developer, contains `## shared_info` or `<!-- COCO_INSTRUCTION -->`)
+
+**Detect both:**
+
+```bash
+WORKING_MANIFEST=""
+SHARED_MANIFEST=""
+SHARED_MANIFEST_FILE=""
+
+# 1. Check for working manifest
+if [ -f .snow-utils/snow-utils-manifest.md ]; then
+  WORKING_MANIFEST="EXISTS"
+  WORKING_STATUS=$(grep "^Status:" .snow-utils/snow-utils-manifest.md | head -1 | awk '{print $2}')
+  echo "Working manifest: .snow-utils/snow-utils-manifest.md (Status: ${WORKING_STATUS})"
+fi
+
+# 2. Check for shared manifest in project root
+for f in *-manifest.md; do
+  [ -f "$f" ] && grep -q "## shared_info\|COCO_INSTRUCTION" "$f" 2>/dev/null && {
+    SHARED_MANIFEST="EXISTS"
+    SHARED_MANIFEST_FILE="$f"
+    echo "Shared manifest: $f"
+  }
+done
+```
+
+**Decision matrix:**
+
+| Working Manifest | Shared Manifest | Action |
+|-----------------|-----------------|--------|
+| None | None | Fresh start → Step 0a (Initialize Manifest) |
+| None | Exists | Copy shared to `.snow-utils/`, run adapt-check → Step 0-adapt |
+| Exists | None | Check Status (see below) |
+| Exists | Exists | **Conflict — ask user which to use** |
+
+**If BOTH manifests exist, show:**
+
+```
+⚠️ Found two manifests in this project:
+
+  1. Working manifest: .snow-utils/snow-utils-manifest.md
+     Status: <WORKING_STATUS>
+     (from your previous run — may have partial progress)
+
+  2. Shared manifest: <SHARED_MANIFEST_FILE>
+     (received from another developer — contains their resource definitions)
+
+Which manifest should we use?
+  A. Resume working manifest (continue where you left off)
+  B. Start fresh from shared manifest (discard working, adapt values for your account)
+  C. Cancel
+```
+
+**⚠️ STOP**: Wait for user choice.
+
+| Choice | Action |
+|--------|--------|
+| **A — Resume working** | Use working manifest → check its Status (below) |
+| **B — Use shared** | Backup working to `.snow-utils/snow-utils-manifest.md.bak`, copy shared to `.snow-utils/snow-utils-manifest.md` → Step 0-adapt |
+| **C — Cancel** | Stop. |
+
+**If ONLY working manifest exists, check its status:**
+
+1. If `IN_PROGRESS` or `DEMO_FAIL`: Use **Resume Flow** (skip to appropriate step)
+2. If `COMPLETE`: Inform user demo already exists, ask if they want to re-run
+3. If `REMOVED`: Proceed with **Replay Flow**
+
+**If ONLY shared manifest exists:**
+Copy to `.snow-utils/snow-utils-manifest.md` → Step 0-adapt.
+
+### Step 0-adapt: Shared Manifest Adapt-Check
+
+**🔴 ALWAYS run this step when using a shared manifest. Prompt user ONLY if `# ADAPT:` markers are found.**
+
+```bash
+# 1. Detect shared manifest origin
+IS_SHARED=$(grep -c "## shared_info\|COCO_INSTRUCTION" .snow-utils/snow-utils-manifest.md 2>/dev/null)
+
+if [ "$IS_SHARED" -gt 0 ]; then
+  # 2. Scan for ADAPT markers
+  ADAPT_COUNT=$(grep -c "# ADAPT:" .snow-utils/snow-utils-manifest.md 2>/dev/null)
+  echo "Shared manifest detected. ADAPT markers found: ${ADAPT_COUNT}"
+fi
+```
+
+**If `ADAPT_COUNT` > 0 (markers found):**
+
+1. Extract `shared_by` from `## shared_info`
+2. Get current user's `SNOWFLAKE_USER` from `.env` or ask
+3. Extract ALL values with `# ADAPT:` markers
+4. Compute adapted values by replacing shared-user prefix with current-user prefix
+5. Present combined adaptation screen:
+
+```
+📋 Shared Manifest Value Review
+─────────────────────────────────
+Shared by: ALICE
+Your user: BOB
+
+  Resource                  Shared Value                    → Adapted Value
+  ────────────────────────  ──────────────────────────────  ──────────────────────────────
+  Service User:             ALICES_HIRC_DUCKDB_DEMO_RUNNER  → BOBS_HIRC_DUCKDB_DEMO_RUNNER
+  Service Role:             ALICES_HIRC_DUCKDB_DEMO_ACCESS  → BOBS_HIRC_DUCKDB_DEMO_ACCESS
+  Database (utils):         ALICES_SNOW_UTILS               → BOBS_SNOW_UTILS
+  Network Rule:             ALICES_..._NETWORK_RULE         → BOBS_..._NETWORK_RULE
+  External Volume:          ALICES_..._EXTERNAL_VOLUME      → BOBS_..._EXTERNAL_VOLUME
+  Demo Database:            ALICES_HIRC_DUCKDB_DEMO         → BOBS_HIRC_DUCKDB_DEMO
+  Admin Role:               ACCOUNTADMIN                    → ACCOUNTADMIN (unchanged)
+
+Options:
+  1. Accept all adapted values (recommended)
+  2. Edit a specific value
+  3. Keep all original values (use as-is)
+```
+
+**⚠️ STOP**: Wait for user choice.
+
+| Choice | Action |
+|--------|--------|
+| **1 — Accept all** | Apply adaptations to manifest in-place, proceed to Replay Flow |
+| **2 — Edit specific** | Ask which value to change, let user provide value, re-display |
+| **3 — Keep originals** | Proceed with original values (user's choice) |
+
+**If `ADAPT_COUNT` = 0 (no markers):**
+
+```
+ℹ️ Shared manifest detected but no adaptation markers found.
+   Using values as-is. Proceeding to Replay Flow.
+```
+
+Proceed to **Replay Flow**.
+
 ### Step 0a: Initialize Manifest
+
+> **⛔ DO NOT hand-edit manifests.** Manifests are machine-managed by Cortex Code. Manual edits can corrupt the format and break replay, cleanup, and export flows. Use skill commands to modify resources instead.
 
 **Create manifest directory and file inside project dir:**
 
@@ -142,8 +278,8 @@ project_name: hirc-duckdb-demo
 ## prereqs
 
 ## dependent_skills
-snow-utils-pat: https://github.com/kameshsampath/snow-utils-skills/snow-utils-pat
-snow-utils-volumes: https://github.com/kameshsampath/snow-utils-skills/snow-utils-volumes
+- snow-utils-pat: https://github.com/kameshsampath/snow-utils-skills/snow-utils-pat
+- snow-utils-volumes: https://github.com/kameshsampath/snow-utils-skills/snow-utils-volumes
 
 ## installed_skills
 EOF
@@ -1240,17 +1376,24 @@ Options:
 
       If any value is empty, ask user: "Some values couldn't be extracted. Enter them manually?" If yes, prompt for each. If no, abort replay.
 
-   f. **Detect shared manifest and offer name adaptation:**
-
-      If manifest contains `# ADAPT: user-prefixed` markers:
+   f. **Shared manifest adapt-check (ALWAYS run for shared manifests):**
 
       ```bash
-      grep -q "# ADAPT:" .snow-utils/snow-utils-manifest.md && echo "SHARED_MANIFEST"
+      # 1. Detect shared manifest origin
+      IS_SHARED=$(grep -c "## shared_info\|COCO_INSTRUCTION" .snow-utils/snow-utils-manifest.md 2>/dev/null)
+
+      if [ "$IS_SHARED" -gt 0 ]; then
+        # 2. Scan for ADAPT markers
+        ADAPT_COUNT=$(grep -c "# ADAPT:" .snow-utils/snow-utils-manifest.md 2>/dev/null)
+        echo "Shared manifest detected. ADAPT markers: ${ADAPT_COUNT}"
+      fi
       ```
 
-      If SHARED_MANIFEST detected, extract `shared_by` from `## shared_info` section and Bob's `SNOWFLAKE_USER` from `.env`. If prefixes differ, show **combined summary + adaptation screen** (see BEST_PRACTICES "Name Adaptation During Replay"). One screen, one confirmation with three options: confirm all, edit specific value, keep originals.
+      **If shared manifest AND `ADAPT_COUNT` > 0:** Follow **Step 0-adapt** above -- extract `shared_by`, get current user's `SNOWFLAKE_USER`, present adaptation screen with all marked values, apply adaptations.
 
-      If NOT a shared manifest (no `# ADAPT`): skip adaptation.
+      **If shared manifest AND `ADAPT_COUNT` = 0:** No adaptation needed, proceed with values as-is.
+
+      **If NOT a shared manifest:** Skip this step.
 
    g. Write all values (adapted or original) to `.env`:
 
@@ -1295,7 +1438,7 @@ Options:
         create --user ${SA_USER} --role ${SA_ROLE} --db ${SNOW_UTILS_DB} --dry-run
       ```
 
-      **🔴 CRITICAL:** Terminal output gets truncated by the UI. After running the command, read the terminal output and paste the ENTIRE result (summary + SQL) into your response as a fenced code block.
+      **🔴 CRITICAL:** Terminal output gets truncated by the UI. After running the command, read the terminal output and paste the ENTIRE result using language-tagged code blocks: ` ```text ` for summary, ` ```sql ` for SQL.
 
       Then execute with `--dot-env-file` so the token never leaks:
 
@@ -1322,7 +1465,7 @@ Options:
 
       **For each dependency skill:**
 
-      1. Run `--dry-run` first, then paste the full output into your response (terminal gets truncated). For volumes this includes IAM policy JSON, trust policy JSON, AND SQL -- do NOT omit the JSON.
+      1. Run `--dry-run` first, then paste the full output into your response using language-tagged code blocks (` ```text `, ` ```sql `, ` ```json `). For volumes: include IAM policy JSON, trust policy JSON, AND SQL -- do NOT omit JSON sections.
       2. Get ONE confirmation with manifest values shown
       3. Execute creation
       4. **Run verify (MANDATORY)** -- do NOT skip, even in replay
@@ -1474,18 +1617,18 @@ Options:
 
 ## Stopping Points
 
-- Step 0: Ask for project directory name
-- Step 0b: If tools missing (provide install instructions)
-- Step 0c: Ask to install each missing skill
-- Step 1a: If prerequisite values missing (direct to skills)
-- Step 2: Ask for demo database name
-- Step 2a: Ask for admin role
-- Step 3: After configuration summary (get confirmation)
-- Step 4: After database preview (get approval)
-- Step 5: After sample data preview (get approval)
-- Step 6: After expected failure (explain why)
-- Step 6a: After explanation (confirm ready to fix)
-- Step 7: After RBAC preview (get approval)
+1. Step 0: Ask for project directory name
+2. Step 0b: If tools missing (provide install instructions)
+3. Step 0c: Ask to install each missing skill
+4. Step 1a: If prerequisite values missing (direct to skills)
+5. Step 2: Ask for demo database name
+6. Step 2a: Ask for admin role
+7. Step 3: After configuration summary (get confirmation)
+8. Step 4: After database preview (get approval)
+9. Step 5: After sample data preview (get approval)
+10. Step 6: After expected failure (explain why)
+11. Step 6a: After explanation (confirm ready to fix)
+12. Step 7: After RBAC preview (get approval)
 
 ## CLI Reference (hirc-duckdb-demo)
 
