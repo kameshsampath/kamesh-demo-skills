@@ -956,8 +956,8 @@ uv run scc-cleanup-role --admin-role ${ADMIN_ROLE} --demo-role ${DEMO_ROLE}
 - View: `${DEMO_DATABASE}.${DEMO_SCHEMA}.SMART_CROWD_COUNTER`
 - Streamlit App: `SMART_CROWD_COUNTER`
 
-**Using the app:**
-1. Open the app URL below (or find it in Snowsight under Projects > Streamlit)
+**Next steps:**
+1. **Open your app:** [${APP_URL}](${APP_URL})
 2. The app automatically connects to the demo database and schema
 3. Upload conference photos (JPG, PNG, JPEG)
 4. Wait for the AI analysis to complete
@@ -1437,6 +1437,23 @@ Cleanup is **two-phase**: first drop the database using the demo role (which own
 
    Use the **file editing tool** (Edit/StrReplace) to replace the entire block with updated status COMPLETE.
 
+8. **Get the app URL and show next steps:**
+
+   ```bash
+   snow streamlit get-url SMART_CROWD_COUNTER \
+     -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
+     --database ${DEMO_DATABASE} \
+     --schema ${DEMO_SCHEMA}
+   ```
+
+   **SHOW** the user:
+
+   ```
+   Replay Complete!
+
+   Open your app: [${APP_URL}](${APP_URL})
+   ```
+
 ## Resume Flow
 
 **If manifest shows Status: IN_PROGRESS:**
@@ -1476,6 +1493,23 @@ Cleanup is **two-phase**: first drop the database using the demo role (which own
    > Skip boxes for DONE steps only.
 
 5. **Update manifest section using unique markers** as each resource is created.
+
+6. **Get the app URL and show next steps:**
+
+   ```bash
+   snow streamlit get-url SMART_CROWD_COUNTER \
+     -c ${SNOWFLAKE_DEFAULT_CONNECTION_NAME} \
+     --database ${DEMO_DATABASE} \
+     --schema ${DEMO_SCHEMA}
+   ```
+
+   **SHOW** the user:
+
+   ```
+   Resume Complete!
+
+   Open your app: [${APP_URL}](${APP_URL})
+   ```
 
 ## Re-run Flow
 

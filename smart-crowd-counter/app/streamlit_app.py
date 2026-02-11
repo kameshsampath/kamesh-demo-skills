@@ -66,18 +66,18 @@ if "uploaded_files" not in st.session_state:
 # ---------------------------------------------------------------------------
 
 st.title("Smart Crowd Counter :material/groups:")
-st.write(
+st.markdown(
     """This Streamlit app helps track conference attendees and badge distribution
-    using AI-powered image analysis.
+using AI-powered image analysis.
 
-    **How it works:**
-    - Upload images (JPG, PNG, JPEG) from your conference sessions
-    - AI analyzes the images to count total attendees and identify raised hands
-    - View conversion rates and visualize badge distribution
-    - Select any row from the table below to see detailed analytics
+**How it works:**
+- Upload images (JPG, PNG, JPEG) from your conference sessions
+- AI analyzes the images to count total attendees and identify raised hands
+- View conversion rates and visualize badge distribution
+- Select any row from the table below to see detailed analytics
 
-    **Get started:** Use the file uploader below to upload your session photos.
-    """
+**Get started:** Use the file uploader below to upload your session photos.
+"""
 )
 
 st.caption(

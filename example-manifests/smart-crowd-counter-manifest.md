@@ -1,13 +1,27 @@
+<!-- COCO_INSTRUCTION: This is a shared snow-utils manifest.
+     project_name: smart-crowd-counter
+     setup_steps:
+       1. Check if required skills are installed: cortex skill list
+       2. For each skill in ## required_skills NOT in the list, run: cortex skill add <url>
+       3. Once all skills installed, follow smart-crowd-counter SKILL.md "Setup from Shared Manifest Flow"
+     To trigger: ask "setup from shared manifest" -->
+
 # Smart Crowd Counter - Shared Manifest
 
-<!-- COCO_INSTRUCTION: This manifest can be imported by another user to replay the demo setup -->
+This manifest tracks Snowflake resources created by the smart-crowd-counter skill.
+
+---
 
 ## shared_info
 shared_by: BOB
-shared_on: 2026-02-11
+shared_date: 2026-02-11
 source_account: sfdevrel_enterprise
+notes: |
+  Smart Crowd Counter - Streamlit app using Cortex AISQL to analyze conference photos.
+  To replay: open in Cortex Code, ask "setup from shared manifest"
 
----
+## required_skills
+smart-crowd-counter: https://github.com/kameshsampath/kamesh-demo-skills/smart-crowd-counter
 
 ## project_recipe
 project_name: smart-crowd-counter
