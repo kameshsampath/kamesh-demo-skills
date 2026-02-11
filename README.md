@@ -4,11 +4,13 @@ A collection of [Cortex Code](https://docs.snowflake.com/en/developer-guide/snow
 
 ## Skills
 
-| Skill | Description |
-|-------|-------------|
-| [hirc-duckdb-demo](./hirc-duckdb-demo/) | Query Snowflake Iceberg tables with DuckDB via Horizon Iceberg REST Catalog |
+| Skill | Description | Demo (w/o CoCo) |
+|-------|-------------|-----------------|
+| [hirc-duckdb-demo](./hirc-duckdb-demo/) | Query Snowflake Iceberg tables with DuckDB via Horizon Iceberg REST Catalog | [hirc-duckdb-demo](https://github.com/kameshsampath/hirc-duckdb-demo) |
 
 ## Prerequisites
+
+- **Cortex Code** -- [Sign up here](https://signup.snowflake.com/cortex-code)
 
 These skills depend on [snow-utils-skills](https://github.com/kameshsampath/snow-utils-skills):
 
