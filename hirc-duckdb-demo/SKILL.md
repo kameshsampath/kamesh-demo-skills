@@ -48,6 +48,8 @@ This skill depends on `snow-utils-*` skills which populate .env with:
 
 **✅ INTERACTIVE PRINCIPLE:** This skill is designed to be interactive. At every decision point, ASK the user and WAIT for their response before proceeding.
 
+**📋 DISPLAY PRINCIPLE:** All **SHOW** and **SUMMARIZE** steps contain SQL/command templates with placeholders like `${ADMIN_ROLE}`, `${DEMO_DATABASE}`, `${SA_ROLE}`. When displaying to the user, **ALWAYS substitute actual values** from `.env` and the manifest. The user should see real values (e.g., `ACCOUNTADMIN`, `KAMESHS_HIRC_DUCKDB_DEMO`), never raw `${...}` placeholders. This applies to SQL previews, DuckDB query previews, result summaries, and all confirmation prompts.
+
 **🔄 RESILIENCE PRINCIPLE:** Always update the manifest IMMEDIATELY after each resource creation, not in batches. This ensures Resume Flow can recover from any interruption (user abort, network failure, etc).
 
 Pattern:
@@ -590,28 +592,22 @@ Proceed with these settings?
 
 ### Step 4: Create Demo Database
 
-**Display SQL Preview (inline, not via bash to avoid truncation):**
+**SHOW — SQL Preview (demo_setup.sql):**
 
-```
-╔══════════════════════════════════════════════════════════════════╗
-║              📋 SQL TO BE EXECUTED (demo_setup.sql)              ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  USE ROLE ${ADMIN_ROLE};                                         ║
-║                                                                  ║
-║  CREATE DATABASE IF NOT EXISTS ${DEMO_DATABASE};                 ║
-║  GRANT USAGE ON DATABASE ${DEMO_DATABASE} TO ROLE ${SA_ROLE};    ║
-║  GRANT USAGE ON SCHEMA ${DEMO_DATABASE}.PUBLIC TO ROLE ${SA_ROLE};║
-║                                                                  ║
-║  ALTER DATABASE IF EXISTS ${DEMO_DATABASE}                       ║
-║    SET EXTERNAL_VOLUME = '${EXTERNAL_VOLUME_NAME}';              ║
-║                                                                  ║
-║  NOTE: Grants USAGE only (not SELECT) - can see but not query    ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
+> **What we're about to do:** Create the demo database, grant USAGE to the service role, and set the external volume.
+
+```sql
+USE ROLE ${ADMIN_ROLE};
+
+CREATE DATABASE IF NOT EXISTS ${DEMO_DATABASE};
+GRANT USAGE ON DATABASE ${DEMO_DATABASE} TO ROLE ${SA_ROLE};
+GRANT USAGE ON SCHEMA ${DEMO_DATABASE}.PUBLIC TO ROLE ${SA_ROLE};
+
+ALTER DATABASE IF EXISTS ${DEMO_DATABASE}
+  SET EXTERNAL_VOLUME = '${EXTERNAL_VOLUME_NAME}';
 ```
 
-> **Note:** Display this box with actual variable values substituted from .env
+> **Note:** Grants USAGE only (not SELECT) -- `${SA_ROLE}` can see the database but cannot query tables yet. Display with actual variable values substituted from `.env`.
 
 **⚠️ STOP**: Show preview to user and get approval before executing.
 
@@ -646,33 +642,29 @@ uv run --project <SKILL_DIR> hirc-demo-setup --admin-role ${ADMIN_ROLE}
 
 ### Step 5: Create Iceberg Table and Load Data
 
-**Display SQL Preview (inline, not via bash to avoid truncation):**
+**SHOW — SQL Preview (sample_data.sql):**
 
-```
-╔══════════════════════════════════════════════════════════════════╗
-║           📋 LOADING SAMPLE DATA (sample_data.sql)               ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  USE ROLE ${ADMIN_ROLE};                                         ║
-║  USE DATABASE ${DEMO_DATABASE};                                  ║
-║  USE SCHEMA PUBLIC;                                              ║
-║                                                                  ║
-║  CREATE OR REPLACE ICEBERG TABLE fruits (                        ║
-║      id INT, name VARCHAR, color VARCHAR,                        ║
-║      price DECIMAL(10,2), in_stock BOOLEAN                       ║
-║  )                                                               ║
-║      CATALOG = 'SNOWFLAKE'                                       ║
-║      EXTERNAL_VOLUME = '${EXTERNAL_VOLUME_NAME}'                 ║
-║      BASE_LOCATION = 'fruits/';                                  ║
-║                                                                  ║
-║  INSERT INTO fruits (id, name, color, price, in_stock)           ║
-║  VALUES (1, 'Apple', 'Red', 1.50, TRUE), ...                     ║
-║         (10 rows total)                                          ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
+> **What we're about to do:** Create an Iceberg table and load 10 sample rows.
+
+```sql
+USE ROLE ${ADMIN_ROLE};
+USE DATABASE ${DEMO_DATABASE};
+USE SCHEMA PUBLIC;
+
+CREATE OR REPLACE ICEBERG TABLE fruits (
+    id INT, name VARCHAR, color VARCHAR,
+    price DECIMAL(10,2), in_stock BOOLEAN
+)
+    CATALOG = 'SNOWFLAKE'
+    EXTERNAL_VOLUME = '${EXTERNAL_VOLUME_NAME}'
+    BASE_LOCATION = 'fruits/';
+
+INSERT INTO fruits (id, name, color, price, in_stock)
+VALUES (1, 'Apple', 'Red', 1.50, TRUE), ...
+       (10 rows total)
 ```
 
-> **Note:** Display this box with actual variable values substituted from .env
+> **Note:** Display with actual variable values substituted from `.env`.
 
 **⚠️ STOP**: Show preview to user and get approval before executing.
 
@@ -692,33 +684,25 @@ uv run --project <SKILL_DIR> hirc-demo-data --admin-role ${ADMIN_ROLE}
 
 ### Step 6: Run Demo (Expect Failure!)
 
-**Display "What We're About To Run" to user:**
+**SHOW — What we're about to run (EXPECT FAILURE):**
 
+> Iceberg table FRUITS created successfully. Now we'll query it from **outside Snowflake** using DuckDB via the Horizon Catalog REST API.
+
+**DuckDB query:**
+
+```sql
+SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS LIMIT 5
 ```
-╔══════════════════════════════════════════════════════════════════╗
-║           ⏳ RUNNING DUCKDB DEMO - EXPECT FAILURE!               ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  ✅ Iceberg table FRUITS created successfully.                   ║
-║                                                                  ║
-║  📋 WHAT WE'RE ABOUT TO RUN:                                     ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  DuckDB query via Horizon Iceberg REST Catalog:                  ║
-║                                                                  ║
-║    SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS LIMIT 5          ║
-║                                                                  ║
-║  Authentication:                                                 ║
-║    • OAuth2 client credentials via SA_PAT                        ║
-║    • Token scope: session:role:${SA_ROLE}                        ║
-║    • Catalog: ${SNOWFLAKE_ACCOUNT_URL}/polaris/api/catalog       ║
-║                                                                  ║
-║  🎯 THIS SHOULD FAIL because ${SA_ROLE} has:                     ║
-║     ✓ USAGE on database (can see it)                             ║
-║     ✓ USAGE on schema (can navigate)                             ║
-║     ✗ NO SELECT on table (cannot read data)                      ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-```
+
+**Authentication:**
+- OAuth2 client credentials via `SA_PAT`
+- Token scope: `session:role:${SA_ROLE}`
+- Catalog: `${SNOWFLAKE_ACCOUNT_URL}/polaris/api/catalog`
+
+> **This SHOULD FAIL** because `${SA_ROLE}` has:
+> - USAGE on database (can see it)
+> - USAGE on schema (can navigate)
+> - **NO SELECT on table** (cannot read data)
 
 **Run the DuckDB demo:**
 
@@ -758,66 +742,40 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 
 ### Step 6a: Why Did It Fail? (Interactive Learning)
 
-**Display the failure explanation to the user:**
+**SUMMARIZE — Demo Failed (as expected!):**
 
+**Error message:**
+
+```text
+Catalog Error: Table with name FRUITS does not exist!
 ```
-╔══════════════════════════════════════════════════════════════════╗
-║                 🔴 DEMO FAILED (AS EXPECTED!)                    ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  ❌ ERROR MESSAGE:                                               ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  "Catalog Error: Table with name FRUITS does not exist!"         ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  🔒 WHY "DOES NOT EXIST" INSTEAD OF "PERMISSION DENIED"?         ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  Horizon Catalog is MORE SECURE - it doesn't reveal whether      ║
-║  a table exists if you can't access it. This prevents            ║
-║  information leakage about your database structure.              ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  🎯 ROOT CAUSE:                                                  ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  The service account role (${SA_ROLE}) has:                      ║
-║                                                                  ║
-║    ✓ USAGE on database ${DEMO_DATABASE}                          ║
-║    ✓ USAGE on schema PUBLIC                                      ║
-║    ✗ NO SELECT on table FRUITS ← Table invisible without this!   ║
-║                                                                  ║
-║  SNOWFLAKE RBAC HIERARCHY:                                       ║
-║  ┌─────────────────────────────────────────────────────────────┐ ║
-║  │ USAGE grants → "see" database/schema (navigate)             │ ║
-║  │ SELECT grants → "see and read" tables/views                 │ ║
-║  │ Without SELECT, tables are INVISIBLE via Horizon Catalog    │ ║
-║  └─────────────────────────────────────────────────────────────┘ ║
-║                                                                  ║
-║  When external engines (DuckDB, Spark, Trino) query via the      ║
-║  Horizon Catalog REST API, they use the service account's role.  ║
-║  That role needs explicit SELECT grants on each table.           ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  📚 LEARN MORE (Snowflake Docs):                                 ║
-║  • Access Control Privileges:                                    ║
-║    https://docs.snowflake.com/en/user-guide/security-access-     ║
-║    control-privileges                                            ║
-║  • Horizon Catalog Overview:                                     ║
-║    https://docs.snowflake.com/en/user-guide/tables-iceberg-      ║
-║    open-catalog                                                  ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  ➡️  NEXT STEP:                                                  ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  Grant SELECT permission to the service account role:            ║
-║                                                                  ║
-║    GRANT SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS          ║
-║      TO ROLE ${SA_ROLE};                                         ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
+
+**Why "does not exist" instead of "permission denied"?**
+
+Horizon Catalog is more secure -- it doesn't reveal whether a table exists if you can't access it. This prevents information leakage about your database structure.
+
+**Root cause:**
+
+The service account role (`${SA_ROLE}`) has:
+- USAGE on database `${DEMO_DATABASE}` (can see it)
+- USAGE on schema PUBLIC (can navigate)
+- **NO SELECT on table FRUITS** -- table is invisible without this!
+
+**Snowflake RBAC hierarchy:**
+- `USAGE` grants -- "see" database/schema (navigate)
+- `SELECT` grants -- "see and read" tables/views
+- Without SELECT, tables are **INVISIBLE** via Horizon Catalog
+
+When external engines (DuckDB, Spark, Trino) query via the Horizon Catalog REST API, they use the service account's role. That role needs explicit SELECT grants on each table.
+
+**Learn more (Snowflake Docs):**
+- [Access Control Privileges](https://docs.snowflake.com/en/user-guide/security-access-control-privileges)
+- [Horizon Catalog Overview](https://docs.snowflake.com/en/user-guide/tables-iceberg-open-catalog)
+
+**Next step** -- grant SELECT permission:
+
+```sql
+GRANT SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS TO ROLE ${SA_ROLE};
 ```
 
 **Ask user:** "Ready to grant SELECT permission and fix this?"
@@ -828,21 +786,16 @@ Forbidden: Role ... does not have permission to access table PUBLIC.FRUITS
 
 > **🔴 PREREQUISITE:** Step 6 (Run Demo - Expect Failure) MUST have been executed and the failure shown to the user BEFORE this step. The fail-then-fix sequence is the core teaching purpose of this demo. If Step 6 was skipped, go back and run it now.
 
-**Display SQL Preview (inline, not via bash to avoid truncation):**
+**SHOW — SQL Preview (rbac.sql):**
 
-```
-╔══════════════════════════════════════════════════════════════════╗
-║              📋 SQL TO BE EXECUTED (rbac.sql)                    ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  USE ROLE ${ADMIN_ROLE};                                         ║
-║  GRANT SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS            ║
-║    TO ROLE ${SA_ROLE};                                           ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
+> **What we're about to do:** Grant SELECT on the FRUITS table to the service role, so external engines can query it via Horizon Catalog.
+
+```sql
+USE ROLE ${ADMIN_ROLE};
+GRANT SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS TO ROLE ${SA_ROLE};
 ```
 
-> **Note:** Display this box with actual variable values substituted from .env
+> **Note:** Display with actual variable values substituted from `.env`.
 
 **⚠️ STOP**: Show preview to user and get approval before executing.
 
@@ -864,55 +817,37 @@ uv run --project <SKILL_DIR> hirc-demo-rbac --admin-role ${ADMIN_ROLE}
 set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
 ```
 
-**Display success to user:**
+**SUMMARIZE — Demo Succeeded!**
 
+**What we ran:**
+
+```sql
+SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS LIMIT 5
 ```
-╔══════════════════════════════════════════════════════════════════╗
-║                    🟢 DEMO SUCCEEDED!                            ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  📋 WHAT WE RAN:                                                 ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  DuckDB query via Horizon Iceberg REST Catalog:                  ║
-║                                                                  ║
-║    SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS                  ║
-║                                                                  ║
-║  Authentication:                                                 ║
-║    • OAuth2 client credentials flow                              ║
-║    • Token scope: session:role:${SA_ROLE}                        ║
-║    • Catalog URL: ${SNOWFLAKE_ACCOUNT_URL}/polaris/api/catalog   ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  ✅ QUERY RESULTS (sample rows):                                 ║
-║  ─────────────────────────────────────────────────────────────── ║
-║                                                                  ║
-║  ┌───────┬────────────┬─────────┬───────────┬──────────┐         ║
-║  │  id   │   name     │  color  │   price   │ in_stock │         ║
-║  │ int32 │  varchar   │ varchar │ decimal() │ boolean  │         ║
-║  ├───────┼────────────┼─────────┼───────────┼──────────┤         ║
-║  │   1   │ Apple      │ Red     │      1.50 │ true     │         ║
-║  │   2   │ Banana     │ Yellow  │      0.75 │ true     │         ║
-║  │   3   │ Orange     │ Orange  │      2.00 │ true     │         ║
-║  │   4   │ Grape      │ Purple  │      3.50 │ true     │         ║
-║  │   5   │ Mango      │ Yellow  │      2.50 │ false    │         ║
-║  └───────┴────────────┴─────────┴───────────┴──────────┘         ║
-║                                                                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  🎯 WHY IT WORKED:                                               ║
-║  ─────────────────────────────────────────────────────────────── ║
-║  The service account role (${SA_ROLE}) now has:                  ║
-║                                                                  ║
-║    ✓ USAGE on database ${DEMO_DATABASE}                          ║
-║    ✓ USAGE on schema PUBLIC                                      ║
-║    ✓ SELECT on table FRUITS  ← Added in Step 7!                  ║
-║                                                                  ║
-║  External engines (DuckDB, Spark, Trino) can now query via       ║
-║  the Horizon Catalog REST API using this role.                   ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-```
+
+**Authentication:**
+- OAuth2 client credentials flow
+- Token scope: `session:role:${SA_ROLE}`
+- Catalog URL: `${SNOWFLAKE_ACCOUNT_URL}/polaris/api/catalog`
+
+**Query results** (display the actual DuckDB output -- sample rows):
+
+| id | name | color | price | in_stock |
+|----|------|-------|-------|----------|
+| 1 | Apple | Red | 1.50 | true |
+| 2 | Banana | Yellow | 0.75 | true |
+| 3 | Orange | Orange | 2.00 | true |
+| 4 | Grape | Purple | 3.50 | true |
+| 5 | Mango | Yellow | 2.50 | false |
+
+**Why it worked:**
+
+The service account role (`${SA_ROLE}`) now has:
+- USAGE on database `${DEMO_DATABASE}`
+- USAGE on schema PUBLIC
+- **SELECT on table FRUITS** -- added in Step 7!
+
+External engines (DuckDB, Spark, Trino) can now query via the Horizon Catalog REST API using this role.
 
 **Update manifest status to DEMO_SUCCESS:** Use the file editing tool (Edit/StrReplace) to change the status:
 
@@ -951,38 +886,33 @@ uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role ${ADMIN_ROLE}
 
 **Display summary:**
 
+#### HIRC DuckDB Demo - Setup Complete!
+
+**Project directory:** `${PROJECT_DIR}`
+
+**Snowflake objects created:**
+- Database: `${DEMO_DATABASE}`
+- Iceberg Table: `${DEMO_DATABASE}.PUBLIC.FRUITS`
+
+**Reused from snow-utils:**
+- External Volume: `${EXTERNAL_VOLUME_NAME}`
+- Service Role: `${SA_ROLE}`
+- Utils Database: `${SNOW_UTILS_DB}`
+
+**Run the demo** (from project dir):
+
+```bash
+cd ${PROJECT_DIR}
+
+# DuckDB CLI
+set -a && source .env && set +a && \
+  envsubst < sql/demo.sql | uv run duckdb -bail
+
+# Jupyter
+uv run jupyter notebook workbook.ipynb
 ```
 
-╔══════════════════════════════════════════════════════════════════╗
-║              HIRC DuckDB Demo - Setup Complete!                  ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  PROJECT DIRECTORY: ${PROJECT_DIR}                               ║
-║                                                                  ║
-║  SNOWFLAKE OBJECTS CREATED:                                      ║
-║    Database:      ${DEMO_DATABASE}                               ║
-║    Iceberg Table: ${DEMO_DATABASE}.PUBLIC.FRUITS                 ║
-║                                                                  ║
-║  REUSED FROM SNOW-UTILS:                                         ║
-║    External Volume: ${EXTERNAL_VOLUME_NAME}                      ║
-║    Service Role:    ${SA_ROLE}                                   ║
-║    Utils Database:  ${SNOW_UTILS_DB}                             ║
-║                                                                  ║
-║  RUN THE DEMO (from project dir):                                ║
-║    cd ${PROJECT_DIR}                                             ║
-║                                                                  ║
-║    DuckDB CLI:                                                   ║
-║      set -a && source .env && set +a && \                        ║
-║      envsubst < sql/demo.sql | uv run duckdb -bail                   ║
-║                                                                  ║
-║    Jupyter:                                                      ║
-║      uv run jupyter notebook workbook.ipynb                      ║
-║                                                                  ║
-║  MANIFEST: ${PROJECT_DIR}/.snow-utils/snow-utils-manifest.md     ║
-║                                                                  ║
-╚══════════════════════════════════════════════════════════════════╝
-
-```
+**Manifest:** `${PROJECT_DIR}/.snow-utils/snow-utils-manifest.md`
 
 ## Export for Sharing Flow
 
@@ -1153,23 +1083,16 @@ Options:
    - `DEMO_DATABASE` from `**Database:** {value}`
    - `ADMIN_ROLE` from `**Admin Role:** {value}`
 
-2. **Display SQL Preview (inline, not via bash to avoid truncation):**
+2. **SHOW — SQL Preview (cleanup.sql):**
 
-   ```
-   ╔══════════════════════════════════════════════════════════════════╗
-   ║              📋 SQL TO BE EXECUTED (cleanup.sql)                 ║
-   ╠══════════════════════════════════════════════════════════════════╣
-   ║                                                                  ║
-   ║  USE ROLE ${ADMIN_ROLE};                                         ║
-   ║  DROP DATABASE IF EXISTS ${DEMO_DATABASE};                       ║
-   ║                                                                  ║
-   ║  NOTE: SA_ROLE, external volume, and PAT are NOT deleted -       ║
-   ║        they are managed by snow-utils-* skills                   ║
-   ║                                                                  ║
-   ╚══════════════════════════════════════════════════════════════════╝
+   > **What we're about to do:** Drop the demo database. SA_ROLE, external volume, and PAT are NOT deleted -- they are managed by snow-utils-* skills.
+
+   ```sql
+   USE ROLE ${ADMIN_ROLE};
+   DROP DATABASE IF EXISTS ${DEMO_DATABASE};
    ```
 
-   > **Note:** Display this box with actual variable values substituted
+   > **Note:** Display with actual variable values substituted from `.env`.
 
 3. **Show cleanup confirmation:**
 
@@ -1649,6 +1572,8 @@ Options:
 
 This is a lightweight pedagogical loop that re-experiences the fail-then-fix RBAC sequence **without destroying or recreating any infrastructure**. All resources (database, table, data) remain intact.
 
+Every step follows: **SHOW** (preview what we'll do) → **DO** (execute) → **SUMMARIZE** (explain what happened).
+
 1. **Read manifest and verify COMPLETE status:**
 
    ```bash
@@ -1661,41 +1586,34 @@ This is a lightweight pedagogical loop that re-experiences the fail-then-fix RBA
 
 3. **Display re-run plan:**
 
-   ```
-   Re-running the fail-then-fix RBAC demo:
-
-     Step 1: REVOKE SELECT on ${DEMO_DATABASE}.PUBLIC.FRUITS from ${SA_ROLE}
-     Step 2: Run DuckDB demo (EXPECT FAILURE - no SELECT)
-     Step 3: Explain why it failed (RBAC lesson)
-     Step 4: GRANT SELECT back to ${SA_ROLE}
-     Step 5: Run DuckDB demo again (SUCCESS)
-
-   Infrastructure is preserved — no databases or tables will be dropped.
-
-   Proceed? [yes/no]
-   ```
+   > **Re-running the fail-then-fix RBAC demo:**
+   >
+   > 1. REVOKE SELECT on `${DEMO_DATABASE}.PUBLIC.FRUITS` from `${SA_ROLE}`
+   > 2. Run DuckDB demo (EXPECT FAILURE -- no SELECT)
+   > 3. Explain why it failed (RBAC lesson)
+   > 4. GRANT SELECT back to `${SA_ROLE}`
+   > 5. Run DuckDB demo again (SUCCESS)
+   >
+   > Infrastructure is preserved -- no databases or tables will be dropped.
+   >
+   > Proceed? [yes/no]
 
    **STOP**: Wait for user confirmation.
 
-4. **REVOKE SELECT — dry-run preview:**
+4. **SHOW — REVOKE SQL Preview (revoke_rbac.sql):**
 
-   Display the SQL that will be executed:
+   > **What we're about to do:** Remove SELECT privilege from the service role, so external engines can no longer read the FRUITS table via Horizon Catalog.
 
+   ```sql
+   USE ROLE ${ADMIN_ROLE};
+   REVOKE SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS FROM ROLE ${SA_ROLE};
    ```
-   ╔══════════════════════════════════════════════════════════════════╗
-   ║        📋 SQL TO BE EXECUTED (revoke_rbac.sql)                   ║
-   ╠══════════════════════════════════════════════════════════════════╣
-   ║                                                                  ║
-   ║  USE ROLE ${ADMIN_ROLE};                                         ║
-   ║  REVOKE SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS           ║
-   ║    FROM ROLE ${SA_ROLE};                                         ║
-   ║                                                                  ║
-   ╚══════════════════════════════════════════════════════════════════╝
-   ```
+
+   > **Note:** Display with actual variable values substituted from `.env`.
 
    **STOP**: Show preview and get approval.
 
-5. **Execute REVOKE:**
+5. **DO — Execute REVOKE:**
 
    ```bash
    uv run --project <SKILL_DIR> hirc-demo-revoke-rbac --admin-role ${ADMIN_ROLE}
@@ -1703,33 +1621,147 @@ This is a lightweight pedagogical loop that re-experiences the fail-then-fix RBA
 
    > Reads DEMO_DATABASE, SA_ROLE from `.env`. `--admin-role` value comes from manifest. Defaults: schema=PUBLIC, table=FRUITS.
 
-6. **Update manifest:** Reset "Demo Run" (row 4) to `PENDING` and "RBAC Grant" (row 5) to `BLOCKED_BY:4`. Use the **file editing tool** (Edit/StrReplace).
+6. **SUMMARIZE — REVOKE result:**
 
-7. **Execute Step 6 (Run Demo - Expect Failure):**
+   > **Result:** SELECT revoked. `${SA_ROLE}` no longer has SELECT on FRUITS.
+   > The table is now **invisible** to external engines querying via Horizon Catalog.
 
-   Follow the instructions in **Step 6: Run Demo (Expect Failure!)** exactly. Display the preview box, run the DuckDB demo, show the failure.
+   **Update manifest:** Reset "Demo Run" (row 4) to `PENDING` and "RBAC Grant" (row 5) to `BLOCKED_BY:4`. Use the **file editing tool** (Edit/StrReplace).
 
-   After failure, update manifest: mark "Demo Run" (row 4) as `DONE`, change "RBAC Grant" (row 5) from `BLOCKED_BY:4` to `PENDING`.
+7. **SHOW — DuckDB Demo Preview (EXPECT FAILURE):**
 
-8. **Execute Step 6a (Why Did It Fail?):**
+   > **What we're about to do:** Run the same DuckDB query against Horizon Catalog. Since we just revoked SELECT, this query should **fail**.
 
-   Follow **Step 6a: Why Did It Fail? (Interactive Learning)** — display the RBAC explanation. Wait for user to confirm ready to fix.
+   **DuckDB query:**
 
-9. **Execute Step 7 (Grant Access):**
+   ```sql
+   SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS LIMIT 5
+   ```
 
-   Follow **Step 7: Grant Access (RBAC)** — display the GRANT SQL preview, get approval, execute.
+   **Authentication:**
+   - OAuth2 client credentials via `SA_PAT`
+   - Token scope: `session:role:${SA_ROLE}`
+   - Catalog: `${SNOWFLAKE_ACCOUNT_URL}/polaris/api/catalog`
 
-   Update manifest: mark "RBAC Grant" (row 5) as `DONE`.
+   > **This SHOULD FAIL** because `${SA_ROLE}` no longer has SELECT (we just revoked it).
 
-10. **Execute Step 8 (Run Demo Again - Success!):**
+8. **DO — Run DuckDB demo:**
 
-    Follow **Step 8: Run Demo Again (Success!)** — run DuckDB demo, display success box.
+   ```bash
+   set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
+   ```
 
-11. **Restore manifest to COMPLETE:**
+   **Check the result:**
+   - **If FAILED (expected):** Continue to step 9 (explain why)
+   - **If SUCCEEDED (unexpected):** REVOKE may not have taken effect -- re-run step 5
 
-    Use the **file editing tool** (Edit/StrReplace) to set status back to `COMPLETE` with all 5 rows as `DONE`.
+9. **SUMMARIZE — Why it failed (RBAC lesson):**
 
-    > The re-run flow is a pedagogical loop — the manifest returns to the same COMPLETE state it started in.
+   **Error message:**
+
+   ```text
+   Catalog Error: Table with name FRUITS does not exist!
+   ```
+
+   **Why "does not exist" instead of "permission denied"?**
+
+   Horizon Catalog is more secure -- it doesn't reveal whether a table exists if you can't access it.
+
+   **Root cause:**
+
+   The service account role (`${SA_ROLE}`) now has:
+   - USAGE on database `${DEMO_DATABASE}` (can see it)
+   - USAGE on schema PUBLIC (can navigate)
+   - **NO SELECT on table FRUITS** -- we just revoked it, so the table is invisible!
+
+   **Snowflake RBAC hierarchy:**
+   - `USAGE` grants -- "see" database/schema (navigate)
+   - `SELECT` grants -- "see and read" tables/views
+   - Without SELECT, tables are **INVISIBLE** via Horizon Catalog
+
+   **Ask user:** "Ready to grant SELECT permission back and fix this?"
+
+   **STOP**: Wait for user confirmation.
+
+   **Update manifest:** Mark "Demo Run" (row 4) as `DONE`, change "RBAC Grant" (row 5) from `BLOCKED_BY:4` to `PENDING`.
+
+10. **SHOW — GRANT SQL Preview (rbac.sql):**
+
+    > **What we're about to do:** Grant SELECT back to the service role, so external engines can query the FRUITS table again.
+
+    ```sql
+    USE ROLE ${ADMIN_ROLE};
+    GRANT SELECT ON TABLE ${DEMO_DATABASE}.PUBLIC.FRUITS TO ROLE ${SA_ROLE};
+    ```
+
+    > **Note:** Display with actual variable values substituted from `.env`.
+
+    **STOP**: Show preview and get approval.
+
+11. **DO — Execute GRANT:**
+
+    ```bash
+    uv run --project <SKILL_DIR> hirc-demo-rbac --admin-role ${ADMIN_ROLE}
+    ```
+
+    > Reads DEMO_DATABASE, SA_ROLE from `.env`. `--admin-role` value comes from manifest. Defaults: schema=PUBLIC, table=FRUITS.
+
+12. **SUMMARIZE — GRANT result:**
+
+    > **Result:** SELECT granted. `${SA_ROLE}` can now read FRUITS again via Horizon Catalog.
+
+    **Update manifest:** Mark "RBAC Grant" (row 5) as `DONE`.
+
+13. **SHOW — DuckDB Demo Preview (EXPECT SUCCESS):**
+
+    > **What we're about to do:** Run the same DuckDB query again. Since we just granted SELECT back, this query should **succeed**.
+
+    **DuckDB query:**
+
+    ```sql
+    SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS LIMIT 5
+    ```
+
+14. **DO — Run DuckDB demo again:**
+
+    ```bash
+    set -a && source .env && set +a && envsubst < sql/demo.sql | uv run duckdb -bail
+    ```
+
+15. **SUMMARIZE — Demo Succeeded!**
+
+    **What we ran:**
+
+    ```sql
+    SELECT * FROM ${DEMO_DATABASE}.PUBLIC.FRUITS LIMIT 5
+    ```
+
+    Display the actual DuckDB query results (sample rows).
+
+    **Why it worked:**
+
+    The service account role (`${SA_ROLE}`) now has:
+    - USAGE on database `${DEMO_DATABASE}`
+    - USAGE on schema PUBLIC
+    - **SELECT on table FRUITS** -- granted back in step 11!
+
+    External engines (DuckDB, Spark, Trino) can now query via the Horizon Catalog REST API using this role.
+
+16. **SUMMARIZE — Re-run Complete:**
+
+    > **Re-run Complete!**
+    >
+    > What we demonstrated:
+    > 1. **REVOKED SELECT** -- table became invisible to external engines
+    > 2. **DuckDB query** -- FAILED (as expected)
+    > 3. **GRANTED SELECT** -- table became visible again
+    > 4. **DuckDB query** -- SUCCEEDED
+    >
+    > **Key takeaway:** Snowflake RBAC controls external engine access at the table level via the Horizon Catalog. Without explicit SELECT grants, tables are invisible to engines like DuckDB, Spark, and Trino.
+
+    **Restore manifest to COMPLETE:** Use the **file editing tool** (Edit/StrReplace) to set status back to `COMPLETE` with all 5 rows as `DONE`.
+
+    > The re-run flow is a pedagogical loop -- the manifest returns to the same COMPLETE state it started in.
 
 ## Stopping Points
 
