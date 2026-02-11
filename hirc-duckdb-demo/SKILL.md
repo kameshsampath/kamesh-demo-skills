@@ -39,6 +39,7 @@ This skill depends on `snow-utils-*` skills which populate .env with:
 - NEVER search for .env files outside the project directory
 - NEVER scan user's home directory or other locations for existing files
 - **NEVER offer to drop SNOW_UTILS_DB** - it is shared infrastructure used by ALL skills/projects
+- **NEVER guess or invent CLI options** - ONLY use options from the CLI Reference tables; if a command fails with "No such option", run `<command> --help` and use ONLY those options
 - Trust .env - if values present, they are correct
 - If values missing, direct user to prerequisite skill (don't search for files)
 
@@ -1440,7 +1441,7 @@ Options:
 
       **🔴 CRITICAL:** Terminal output gets truncated by the UI. After running the command, read the terminal output and paste the ENTIRE result using language-tagged code blocks: ` ```text ` for summary, ` ```sql ` for SQL.
 
-      Then execute with `--dot-env-file` so the token never leaks:
+      First run `snow-utils-pat create --help` to confirm available options, then execute:
 
       ```bash
       uv run --project <SKILL_DIR> snow-utils-pat \
@@ -1448,7 +1449,8 @@ Options:
         --dot-env-file .env
       ```
 
-      > **🔴 SECURITY:** ALWAYS use `--dot-env-file .env`. NEVER use `sed` or shell commands to write the token.
+      > **🔴 SECURITY:** NEVER use `sed` or shell commands to write the token.
+      > **Fallback:** If `--dot-env-file` is not available ("No such option"), drop that flag -- the CLI writes SA_PAT to `.env` via `--env-path` anyway.
 
       **Verify PAT connection (MANDATORY -- do NOT skip):**
 
@@ -1633,6 +1635,12 @@ Options:
 ## CLI Reference (hirc-duckdb-demo)
 
 All commands auto-load `.env` and pass required variables to `snow sql` with templating.
+
+**🔴 OPTION NAMES (NEVER guess or invent options):**
+
+> ONLY use options listed in the tables below and in each dependency skill's CLI Reference.
+> If a command fails with "No such option", run `<command> --help` to see actual available options and use ONLY those.
+> NEVER invent, abbreviate, or rename options. This applies to ALL CLIs: `hirc-demo-*`, `snow-utils-pat`, `snow-utils-networks`, `snow-utils-volumes`.
 
 ### `hirc-demo-setup`
 
