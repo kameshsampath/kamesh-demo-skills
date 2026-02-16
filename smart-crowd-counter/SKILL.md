@@ -44,6 +44,7 @@ For Streamlit-related tasks (editing the app, improving UI, deploying), use the 
 - **NEVER guess or invent CLI options** - ONLY use options from the CLI Reference tables; if a command fails with "No such option", run `<command> --help` and use ONLY those options
 - **NEVER use `uv run --project <SKILL_DIR>`** for CLI commands -- it changes CWD and breaks `.env` discovery. Always use `uv run scc-xxx` from the project directory
 - **NEVER run `snow streamlit deploy` without `--role ${DEMO_ROLE}`** -- the demo role owns the database and app. Omitting `--role` uses the connection's default role which will fail or deploy to the wrong context. ALWAYS include `--role ${DEMO_ROLE}` on every deploy, redeploy, or update.
+- **NEVER run raw SQL for cleanup** -- ALWAYS use the CLI commands (`scc-cleanup`, `scc-cleanup-role`). Raw SQL skips dependency ordering and causes partial cleanup (e.g., role still granted to user, database still owned by role).
 - Trust .env - if values present, they are correct
 - If values missing, prompt the user (don't search for files)
 
@@ -375,7 +376,7 @@ grep "^tools_verified:" .snow-utils/snow-utils-manifest.md 2>/dev/null
 **Otherwise, check required tools:**
 
 ```bash
-for t in uv snow; do command -v $t &>/dev/null && echo "$t: OK" || echo "$t: MISSING"; done
+for t in uv snow envsubst; do command -v $t &>/dev/null && echo "$t: OK" || echo "$t: MISSING"; done
 ```
 
 > **Note:** `cortex` is not checked - if this skill is running, cortex is already installed.
@@ -386,6 +387,7 @@ for t in uv snow; do command -v $t &>/dev/null && echo "$t: OK" || echo "$t: MIS
 |------|------------------|
 | `uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | `snow` | `pip install snowflake-cli` or `uv tool install snowflake-cli` |
+| `envsubst` | Part of GNU gettext -- `brew install gettext` (macOS) or `apt-get install gettext` (Linux) |
 
 **STOP**: Do not proceed until all prerequisites are installed.
 

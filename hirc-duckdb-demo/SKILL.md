@@ -42,6 +42,7 @@ This skill depends on `snow-utils-*` skills which populate .env with:
 - **NEVER offer to drop SNOW_UTILS_DB** - it is shared infrastructure used by ALL skills/projects
 - **NEVER use sed/awk/bash to edit manifest files** -- use the file editing tool (Edit/StrReplace) to update manifest content. sed commands fail on macOS and with complex markdown.
 - **NEVER guess or invent CLI options** - ONLY use options from the CLI Reference tables; if a command fails with "No such option", run `<command> --help` and use ONLY those options
+- **NEVER run raw SQL for cleanup** -- ALWAYS use the CLI commands (`hirc-demo-cleanup`, `snow-utils-pat remove`, `snow-utils-volumes delete`, `snow-utils-networks rule delete`). Raw SQL skips dependency ordering and causes partial cleanup (e.g., policy still attached to user, rule still referenced by policy).
 - **NEVER run Step 7 (RBAC grant) before Step 6 (demo failure)** - the fail-then-fix sequence is the core teaching purpose of this demo. Step 6 MUST execute and the failure MUST be shown and explained to the user before granting SELECT. Do NOT "optimize" by combining data loading and RBAC into one batch.
 - Trust .env - if values present, they are correct
 - If values missing, direct user to prerequisite skill (don't search for files)
@@ -344,7 +345,7 @@ grep "^tools_verified:" .snow-utils/snow-utils-manifest.md 2>/dev/null
 **Otherwise, check required tools:**
 
 ```bash
-for t in uv snow; do command -v $t &>/dev/null && echo "$t: OK" || echo "$t: MISSING"; done
+for t in uv snow jq envsubst; do command -v $t &>/dev/null && echo "$t: OK" || echo "$t: MISSING"; done
 ```
 
 > **Note:** `cortex` is not checked - if this skill is running, cortex is already installed.
@@ -355,6 +356,8 @@ for t in uv snow; do command -v $t &>/dev/null && echo "$t: OK" || echo "$t: MIS
 |------|------------------|
 | `uv` | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | `snow` | `pip install snowflake-cli` or `uv tool install snowflake-cli` |
+| `jq` | `brew install jq` or see [jq downloads](https://jqlang.github.io/jq/download/) |
+| `envsubst` | Part of GNU gettext -- `brew install gettext` (macOS) or `apt-get install gettext` (Linux) |
 
 **⚠️ STOP**: Do not proceed until all prerequisites are installed.
 
@@ -1097,9 +1100,12 @@ Options:
 
 ## Cleanup Flow
 
-**Trigger phrases:** "cleanup hirc demo", "remove hirc demo", "delete demo database"
+**Trigger phrases:** "cleanup hirc demo", "remove hirc demo", "delete demo database", "clean up", "clean"
 
 **IMPORTANT:** This is the **hirc-duckdb-demo** skill. Only cleanup sections marked `<!-- START -- hirc-duckdb-demo:* -->`.
+
+> **🔴 CRITICAL: ALWAYS use CLI commands for cleanup. NEVER run raw SQL.**
+> Raw SQL skips dependency ordering and causes partial cleanup. See FORBIDDEN ACTIONS.
 
 1. **Read manifest:**
 
@@ -1107,7 +1113,7 @@ Options:
    cat .snow-utils/snow-utils-manifest.md 2>/dev/null
    ```
 
-1. **Find section using unique markers:**
+2. **Find demo section using unique markers:**
 
    Look for the block between:
 
@@ -1121,7 +1127,44 @@ Options:
    - `DEMO_DATABASE` from `**Database:** {value}`
    - `ADMIN_ROLE` from `**Admin Role:** {value}`
 
-2. **SHOW — SQL Preview (cleanup.sql):**
+3. **Detect dependency resources in manifest:**
+
+   Check for dependency skill sections that are NOT already `REMOVED`:
+
+   ```bash
+   PAT_STATUS=$(grep -A10 "<!-- START -- snow-utils-pat" .snow-utils/snow-utils-manifest.md 2>/dev/null | grep "^\*\*Status:\*\*" | head -1 | sed 's/\*\*Status:\*\* //')
+   VOL_STATUS=$(grep -A10 "<!-- START -- snow-utils-volumes" .snow-utils/snow-utils-manifest.md 2>/dev/null | grep "^\*\*Status:\*\*" | head -1 | sed 's/\*\*Status:\*\* //')
+   NW_STATUS=$(grep -A10 "<!-- START -- snow-utils-networks" .snow-utils/snow-utils-manifest.md 2>/dev/null | grep "^\*\*Status:\*\*" | head -1 | sed 's/\*\*Status:\*\* //')
+   ```
+
+4. **Ask user for cleanup scope (if dependencies exist):**
+
+   **If ANY dependency section exists with a non-REMOVED status**, present the scope prompt BEFORE any cleanup:
+
+   ```
+   What would you like to clean up?
+
+     1. Demo only -- drop the demo database (${DEMO_DATABASE})
+        Keeps: PAT, external volume, network rule, service account
+
+     2. Everything -- demo + all dependency resources
+        Removes: demo database, PAT, external volume, S3 bucket,
+        IAM role, network rule, service account
+
+     3. Cancel
+   ```
+
+   **⚠️ STOP**: Wait for user choice.
+
+   | Choice | Action |
+   |--------|--------|
+   | **1 -- Demo only** | Proceed to step 5 (demo cleanup only), skip step 8 (cascading) |
+   | **2 -- Everything** | Proceed to step 5, then continue to step 8 (cascading cleanup) |
+   | **3 -- Cancel** | Stop. |
+
+   **If NO dependency sections exist (or ALL are already REMOVED):** Skip this prompt and proceed directly to step 5 (demo cleanup only).
+
+5. **SHOW -- SQL Preview (cleanup.sql):**
 
    > **What we're about to do:** Drop the demo database. SA_ROLE, external volume, and PAT are NOT deleted -- they are managed by snow-utils-* skills.
 
@@ -1132,7 +1175,7 @@ Options:
 
    > **Note:** Display with actual variable values substituted from `.env`.
 
-3. **Show cleanup confirmation:**
+6. **Show cleanup confirmation:**
 
    ```
    Will remove: Database ${DEMO_DATABASE} and all its tables
@@ -1145,7 +1188,7 @@ Options:
 
    **⚠️ STOP**: Wait for user confirmation.
 
-4. **On confirmation:** Execute cleanup using the CLI command:
+7. **On confirmation:** Execute cleanup using the CLI command:
 
    ```bash
    uv run --project <SKILL_DIR> hirc-demo-cleanup --admin-role ${ADMIN_ROLE}
@@ -1153,7 +1196,7 @@ Options:
 
    > **NEVER run raw SQL for cleanup.** ALWAYS use the CLI command above.
 
-5. **Update manifest section using unique markers:**
+   **Update manifest section using unique markers:**
 
    **IMPORTANT:** Do NOT delete the manifest file. Update the status to REMOVED so the demo can be replayed later.
 
@@ -1183,38 +1226,41 @@ Options:
    <!-- END -- hirc-duckdb-demo:{DEMO_DATABASE} -->
    ```
 
-6. **Cascading dependency cleanup (interactive -- ask for each):**
+   **If user chose "Demo only" in step 4:** Show summary and stop. Do NOT proceed to step 8.
+
+   ```
+   Cleanup Summary:
+     Demo Database: ${DEMO_DATABASE} → REMOVED
+
+   Note: Dependency resources (PAT, external volume, network rule) were kept.
+   To clean those later, say "clean up everything".
+   ```
+
+8. **Cascading dependency cleanup (only if user chose "Everything" in step 4):**
 
    > **🔴 CRITICAL: ALWAYS use the respective skill's CLI command for dependency cleanup. NEVER run raw SQL.**
    >
    > **🔴 NEVER offer to drop SNOW_UTILS_DB.** It is shared infrastructure used by ALL skills and projects. Cleanup only removes resources *inside* that database (policies, network rules, schemas), never the database itself.
 
-   After demo cleanup succeeds, read the manifest for dependency skill sections and offer to clean each one:
+   After demo cleanup succeeds, execute dependency cleanup in reverse creation order (Volumes -> PAT -> Networks):
 
-   ```
-   ✓ Demo database ${DEMO_DATABASE} cleaned up.
+   > **Note:** When user chose "Everything" in step 4, they already consented to full cleanup. Show a brief confirmation for each dependency (what will be removed and the CLI command), but do NOT re-ask the scope question.
 
-   The following dependency resources still exist:
-     1. PAT:      ${SA_USER} (managed by snow-utils-pat)
-     2. Volumes:  ${EXTERNAL_VOLUME_NAME} (managed by snow-utils-volumes)
-     3. Networks: ${NW_RULE_NAME} (managed by snow-utils-networks)
+   **For each dependency skill with non-REMOVED status:**
 
-   Would you like to clean up dependency resources?
-   ```
-
-   **⚠️ STOP**: Wait for user input.
-
-   **For each dependency skill (reverse creation order: PAT -> Volumes -> Networks):**
-
-   a. **Ask user:**
+   a. **Show what will be removed and the CLI command:**
 
       ```
-      Remove PAT resources (user: ${SA_USER}, role: ${SA_ROLE})? [yes/no]
+      Cleaning up: PAT resources (user: ${SA_USER}, role: ${SA_ROLE})
+      Command: uv run --project <SKILL_DIR> snow-utils-pat \
+        remove --user ${SA_USER} --db ${SNOW_UTILS_DB} --drop-user
+
+      Proceed? [yes/no]
       ```
 
-      **⚠️ STOP**: Wait for user input.
+      **⚠️ STOP**: Wait for user confirmation.
 
-   b. **On "yes":** Read the CLI command from that skill's **"Cleanup Instructions"** section in the manifest, then execute it:
+   b. **On "yes":** Execute the CLI command from that skill's **"Cleanup Instructions"** section in the manifest:
 
       **PAT cleanup:**
       ```bash
@@ -1245,10 +1291,10 @@ Options:
 
    ```
    Cleanup Summary:
-     ✓ Demo Database:     ${DEMO_DATABASE}     → REMOVED
-     ✓ PAT:               ${SA_USER}           → REMOVED  (or "SKIPPED" if user said no)
-     ✓ External Volume:   ${EXTERNAL_VOLUME_NAME} → REMOVED
-     ✓ Network Rule:      ${NW_RULE_NAME}      → REMOVED
+     Demo Database:     ${DEMO_DATABASE}           → REMOVED
+     PAT:               ${SA_USER}                 → REMOVED  (or "SKIPPED" if user said no)
+     External Volume:   ${EXTERNAL_VOLUME_NAME}    → REMOVED
+     Network Rule:      ${NW_RULE_NAME}            → REMOVED
    ```
 
 ## Replay Flow
