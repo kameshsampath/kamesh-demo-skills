@@ -167,7 +167,7 @@ After successful download, continue with local manifest detection below — the 
 A project directory may contain:
 
 - **Working manifest:** `.snow-utils/snow-utils-manifest.md` (created during a previous run, may be partial/IN_PROGRESS)
-- **Shared manifest:** `*-manifest.md` in the project root (received from another developer, contains `## shared_info` or `<!-- COCO_INSTRUCTION -->`)
+- **Shared manifest:** `*-manifest.md` in the project root (received from another developer, contains `## shared_info` or `<!-- CORTEX_CODE_INSTRUCTION -->`)
 
 **Detect both:**
 
@@ -185,7 +185,7 @@ fi
 
 # 2. Check for shared manifest in project root
 for f in *-manifest.md; do
-  [ -f "$f" ] && grep -q "## shared_info\|COCO_INSTRUCTION" "$f" 2>/dev/null && {
+  [ -f "$f" ] && grep -q "## shared_info\|CORTEX_CODE_INSTRUCTION" "$f" 2>/dev/null && {
     SHARED_MANIFEST="EXISTS"
     SHARED_MANIFEST_FILE="$f"
     echo "Shared manifest: $f"
@@ -243,7 +243,7 @@ Which manifest should we use?
 
 ```bash
 # 1. Detect shared manifest origin
-IS_SHARED=$(grep -c "## shared_info\|COCO_INSTRUCTION" .snow-utils/snow-utils-manifest.md 2>/dev/null)
+IS_SHARED=$(grep -c "## shared_info\|CORTEX_CODE_INSTRUCTION" .snow-utils/snow-utils-manifest.md 2>/dev/null)
 
 if [ "$IS_SHARED" -gt 0 ]; then
   # 2. Scan for ADAPT markers
@@ -991,17 +991,17 @@ Save to [./]:
 5. **If file already exists at target:** Ask overwrite / rename with timestamp / cancel
 
 6. **Create export file** with these transformations:
-   - Inject enriched `<!-- COCO_INSTRUCTION -->` at top (see format below)
+   - Inject enriched `<!-- CORTEX_CODE_INSTRUCTION -->` at top (see format below)
    - Add `## shared_info` section after `# Snow-Utils Manifest` header
    - Add `## required_skills` section after `## shared_info` (see format below)
    - Change ALL `**Status:** COMPLETE` to `**Status:** REMOVED`
    - Add `# ADAPT: user-prefixed` to values containing the user's prefix
    - Remove `### Cleanup Instructions` subsections (not relevant for recipient)
 
-   **COCO_INSTRUCTION format (inject at top of exported file):**
+   **CORTEX_CODE_INSTRUCTION format (inject at top of exported file):**
 
    ```markdown
-   <!-- COCO_INSTRUCTION: This is a shared snow-utils manifest.
+   <!-- CORTEX_CODE_INSTRUCTION: This is a shared snow-utils manifest.
         project_name: {project_name}
         setup_steps:
           1. Check if required skills are installed: cortex skill list
@@ -1044,7 +1044,7 @@ Share this file with your colleague. They can open it in Cursor and ask Cortex C
 
 **If user provides a URL:** Apply the **Remote Manifest URL Detection** rules from Step 0-manifest-check above — translate the URL, confirm download with user, `curl` to current directory. Then continue below.
 
-When Cortex Code detects a shared manifest (file with `## shared_info` section or `<!-- COCO_INSTRUCTION -->` comment):
+When Cortex Code detects a shared manifest (file with `## shared_info` section or `<!-- CORTEX_CODE_INSTRUCTION -->` comment):
 
 1. **Check and install required skills (self-install):**
 
@@ -1403,7 +1403,7 @@ Options:
 
       ```bash
       # 1. Detect shared manifest origin
-      IS_SHARED=$(grep -c "## shared_info\|COCO_INSTRUCTION" .snow-utils/snow-utils-manifest.md 2>/dev/null)
+      IS_SHARED=$(grep -c "## shared_info\|CORTEX_CODE_INSTRUCTION" .snow-utils/snow-utils-manifest.md 2>/dev/null)
 
       if [ "$IS_SHARED" -gt 0 ]; then
         # 2. Scan for ADAPT markers

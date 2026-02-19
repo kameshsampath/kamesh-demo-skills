@@ -114,7 +114,7 @@ Cortex Code will:
 2. Create `hirc-duckdb-demo-manifest.md` in the project root
 3. Set all statuses to `REMOVED` (so the receiver replays from scratch)
 4. Add `# ADAPT:` markers on user-prefixed values (so the receiver can adapt names)
-5. Inject `COCO_INSTRUCTION`, `shared_info`, and `required_skills` sections
+5. Inject `CORTEX_CODE_INSTRUCTION`, `shared_info`, and `required_skills` sections
 
 Share the exported file via email, Slack, or push it to a GitHub repo. The receiver opens it in Cortex Code and says "setup from shared manifest".
 
